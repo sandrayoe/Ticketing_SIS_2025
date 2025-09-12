@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useRef, useEffect } from 'react';
+import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 
 const shell = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8";
@@ -14,6 +15,7 @@ function sek(n: number) {
 }
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -100,10 +102,12 @@ export default function RegisterPage() {
 
       if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
 
-      setMsg(`✅ Registered! Amount: ${data.amount} SEK`);
-      // window.location.href = `/success?rid=${data.registrationId}`;
+      // redirecting to success page
+      router.push("/success");
     } catch (err: any) {
-      setMsg(`❌ ${err.message ?? 'Error'}`);
+      console.error(err);
+      setLoading(false);
+      alert("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
