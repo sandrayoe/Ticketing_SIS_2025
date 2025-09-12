@@ -55,12 +55,12 @@ export default function aboutPage() {
       {/* Footer (GREEN) */}
       <footer className="mt-6 border-t bg-earthy-green text-white">
         <div className={`${shell} py-4 text-center text-xs`}>
-          © 2025 sandrayoe. 
-        </div>
-        <div className={`pb-4 text-center text-xs`}>
-        All pictures and documentations belong to SIS archive. All rights reserved.
+          <span>© 2025 sandrayoe.</span>
+          <br className="sm:hidden" />
+          <span>All pictures and documentations belong to SIS archive.</span>
         </div>
       </footer>
+
     </div>
   );
 }
