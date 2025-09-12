@@ -96,7 +96,7 @@ export default function HomePage() {
       {/* Footer (GREEN) */}
       <footer className="mt-6 border-t bg-earthy-green text-white">
         <div className={`${shell} py-4 text-center text-xs`}>
-          © {new Date().getFullYear()} Ticketing. All rights reserved.
+          © 2025 sandrayoe. All pictures and documentations belong to SIS archive. All rights reserved.
         </div>
       </footer>
     </div>
