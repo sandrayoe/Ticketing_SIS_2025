@@ -11,13 +11,23 @@ export default function aboutPage() {
       {/* Navigation (GREEN) */}
       <header className="border-b bg-earthy-green text-white">
         <nav className={`${shell} flex h-14 items-center justify-between`}>
-          <a href="/" className="text-sm font-semibold">Ticketing</a>
-          <div className="hidden sm:flex gap-6 text-sm">
-            <a href="/about" className="hover:underline">About</a>
+          <a href="/" className="flex items-center gap-2 text-xl font-semibold">
+            {/* Logo image */}
+            <img
+              src="/images/SIS_logo_transp.png" 
+              alt="Logo"
+              className="h-12 w-12"
+            />
+            Pasar Malam SIS 2025: Celebration of Friendship
+          </a>
+          <div className="hidden sm:flex gap-6 text-xl">
+            <a href="/about" className="hover:underline">
+              About
+            </a>
           </div>
         </nav>
       </header>
-
+      
       {/* Main */}
       <main className={`${shell} grow py-10 sm:py-14`}>
         {/* Welcome */}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Clover } from 'lucide-react';
 
 const shell = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8";
 
@@ -23,9 +24,19 @@ export default function HomePage() {
       {/* Navigation (GREEN) */}
       <header className="border-b bg-earthy-green text-white">
         <nav className={`${shell} flex h-14 items-center justify-between`}>
-          <a href="/" className="text-sm font-semibold">Ticketing</a>
-          <div className="hidden sm:flex gap-6 text-sm">
-            <a href="/about" className="hover:underline">About</a>
+          <a href="/" className="flex items-center gap-2 text-xl font-semibold">
+            {/* Logo image */}
+            <img
+              src="/images/SIS_logo_transp.png" 
+              alt="Logo"
+              className="h-12 w-12"
+            />
+            Pasar Malam SIS 2025: Celebration of Friendship
+          </a>
+          <div className="hidden sm:flex gap-6 text-xl">
+            <a href="/about" className="hover:underline">
+              About
+            </a>
           </div>
         </nav>
       </header>
@@ -34,7 +45,11 @@ export default function HomePage() {
       <main className={`${shell} grow py-10 sm:py-14`}>
         {/* Welcome */}
         <div className="mx-auto max-w-xl text-center">
-          <h1 className="text-3xl font-bold sm:text-4xl">Welcome!</h1>
+          <h1 className="flex items-center justify-center gap-2 text-3xl font-bold sm:text-4xl">
+            <Clover className="h-8 w-8 text-earthy-green" />
+            Welcome!
+            <Clover className="h-8 w-8 text-earthy-green" />
+          </h1>
           <p className="mt-3 text-earthy-dark/80 sm:text-lg">
             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
             Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
