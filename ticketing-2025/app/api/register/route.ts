@@ -1,34 +1,63 @@
 // app/api/register/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import  prisma  from '@/lib/prisma'
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-const PRICE_REGULAR = Number(process.env.PRICE_REGULAR ?? 150)
-const PRICE_MEMBER  = Number(process.env.PRICE_MEMBER  ?? 120)
-const PRICE_CHILD   = Number(process.env.PRICE_CHILD   ??  50)
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+
+const PRICE_REGULAR = Number(process.env.PRICE_REGULAR ?? 150);
+const PRICE_MEMBER  = Number(process.env.PRICE_MEMBER  ?? 120);
+const PRICE_CHILD   = Number(process.env.PRICE_CHILD   ??  50);
 
 export async function POST(req: NextRequest) {
-  const body = await req.json()
+  try {
+    const body = await req.json();
 
-  const tickets_regular = Number(body.tickets_regular ?? 0)
-  const tickets_member  = Number(body.tickets_member  ?? 0)
-  const tickets_children   = Number(body.tickets_child   ?? body.tickets_children ?? 0)
+    const name  = String(body.name ?? '').trim();
+    const email = String(body.email ?? '').trim();
 
-  const total_amount =
-    tickets_regular * PRICE_REGULAR +
-    tickets_member  * PRICE_MEMBER  +
-    tickets_children   * PRICE_CHILD
+    const tickets_regular  = Number(body.tickets_regular ?? 0);
+    const tickets_member   = Number(body.tickets_member  ?? 0);
+    const tickets_children = Number(body.tickets_child ?? body.tickets_children ?? 0);
 
-  const reg = await prisma.registration.create({
-    data: {
-      name: body.name,
-      email: body.email,
-      tickets_regular,
-      tickets_member,
-      tickets_children,
-      total_amount,
-      proof_url: body.proof_url ?? '',
-    },
-  })
+    const proof_url = String(body.proof_url ?? '').trim();
 
-  return NextResponse.json({ ok: true, registrationId: reg.id, amount: total_amount })
+    // Minimal guards (UI should already enforce these)
+    if (!name || !email) {
+      return NextResponse.json({ ok: false, error: 'Name and email are required.' }, { status: 400 });
+    }
+    if ([tickets_regular, tickets_member, tickets_children].some(n => !Number.isFinite(n) || n < 0)) {
+      return NextResponse.json({ ok: false, error: 'Invalid ticket quantities.' }, { status: 400 });
+    }
+    const totalTickets = tickets_regular + tickets_member + tickets_children;
+    if (totalTickets === 0) {
+      return NextResponse.json({ ok: false, error: 'Select at least one ticket.' }, { status: 400 });
+    }
+    if (!proof_url) {
+      return NextResponse.json({ ok: false, error: 'Payment proof is required.' }, { status: 400 });
+    }
+
+    const total_amount =
+      tickets_regular * PRICE_REGULAR +
+      tickets_member  * PRICE_MEMBER  +
+      tickets_children * PRICE_CHILD;
+
+    const reg = await prisma.registration.create({
+      data: {
+        name,
+        email,
+        tickets_regular,
+        tickets_member,
+        tickets_children,
+        total_amount,
+        proof_url,
+      },
+    });
+
+    return NextResponse.json({ ok: true, registrationId: reg.id, amount: total_amount });
+  } catch (err: any) {
+    console.error('REGISTER_ERROR:', err);
+    const msg = err?.code ? `${err.code}: ${err.message}` : (err?.message || 'Internal error');
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
 }

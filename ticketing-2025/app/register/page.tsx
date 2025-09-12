@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
+import { Trash2 } from "lucide-react";
 
 const shell = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8";
 
@@ -17,6 +18,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const canSubmit = (proofFile || form.proof_url) && !loading && !uploading;
 
   const isImage = useMemo(
     () => proofFile?.type?.startsWith('image/'),
@@ -46,19 +48,27 @@ export default function RegisterPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true); setMsg(null);
+    setMsg(null);
+
+    // ✅ Require proof file/url
+    if (!proofFile && !form.proof_url) {
+      setMsg('❌ Please attach a payment proof (image or PDF).');
+      return;
+    }
+
+    setLoading(true);
     try {
-      // 1) upload file first (if any) to get a public URL
       const proofUrl = await uploadProofIfNeeded();
 
-      // 2) submit registration with proof_url included
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type':'application/json' },
         body: JSON.stringify({ ...form, proof_url: proofUrl ?? '' }),
       });
       const data = await res.json();
+
       if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+
       setMsg(`✅ Registered! Amount: ${data.amount} SEK`);
       // window.location.href = `/success?rid=${data.registrationId}`;
     } catch (err: any) {
@@ -68,10 +78,11 @@ export default function RegisterPage() {
     }
   }
 
+
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
     if (!f) { setProofFile(null); return; }
-    // optional size guard: ~10 MB
+    // size guard: ~10 MB
     if (f.size > 10 * 1024 * 1024) {
       setMsg('❌ File too large. Max 10 MB.');
       e.target.value = '';
@@ -85,6 +96,21 @@ export default function RegisterPage() {
     }
     setMsg(null);
     setProofFile(f);
+  }
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // revoke old preview URLs when file changes/unmounts
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  function clearProof() {
+    setProofFile(null);
+    // clear the <input type="file">
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   return (
@@ -184,16 +210,21 @@ export default function RegisterPage() {
                 {/* Proof uploader */}
                 <div className="rounded-2xl border border-earthy-dark/10 p-4 sm:p-5">
                   <label className="block">
-                    <span className="mb-1 block text-sm font-medium">Payment proof (image or PDF)</span>
+                    <span className="mb-1 block text-sm font-medium">
+                      Payment proof (image or PDF)
+                    </span>
                     <input
+                      ref={fileInputRef}
                       type="file"
                       accept="image/*,application/pdf"
                       onChange={onFileChange}
+                      // Add `required` if you want hard enforcement at the browser level:
+                      // required
                       className="w-full cursor-pointer rounded-lg border border-earthy-dark/20 bg-white p-2.5 file:mr-4 file:rounded-md file:border-0 file:bg-earthy-brown file:px-4 file:py-2 file:text-sm file:font-semibold file:text-earthy-dark hover:file:bg-earthy-green hover:file:text-white"
                     />
                   </label>
 
-                  {/* Preview */}
+                  {/* Preview + Remove */}
                   {proofFile && (
                     <div className="mt-3 flex items-center gap-3 text-sm">
                       {isImage && previewUrl ? (
@@ -201,13 +232,21 @@ export default function RegisterPage() {
                           src={previewUrl}
                           alt="Preview"
                           className="h-16 w-16 rounded-md border object-cover"
-                          onLoad={() => URL.revokeObjectURL(previewUrl)}
                         />
                       ) : (
                         <div className="rounded-md border px-3 py-2">
                           {proofFile.name} ({Math.round(proofFile.size/1024)} KB)
                         </div>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={clearProof}
+                        className="rounded-md border border-earthy-dark/20 px-3 py-1.5 text-xs font-medium hover:bg-earthy-green hover:text-white"
+                        title="Remove file"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   )}
                 </div>
@@ -215,7 +254,7 @@ export default function RegisterPage() {
                 {/* Submit */}
                 <div className="pt-2 flex items-center gap-3">
                   <button
-                    disabled={loading || uploading}
+                    disabled={loading || uploading || !canSubmit}
                     className="rounded-xl bg-earthy-brown px-6 py-3 text-sm font-semibold text-earthy-dark shadow hover:bg-earthy-green hover:text-white focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-earthy-green disabled:opacity-60"
                   >
                     {uploading ? 'Uploading…' : loading ? 'Submitting…' : 'Submit'}
