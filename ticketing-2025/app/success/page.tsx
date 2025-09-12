@@ -7,8 +7,6 @@ const shell = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8";
 
 export default function SuccessPage() {
   const params = useSearchParams();
-  const amount = params.get("amount"); // optional ?amount=...
-  const rid = params.get("id");        // optional ?id=...
 
   return (
     <div className="min-h-svh flex flex-col bg-earthy-light text-earthy-dark">
@@ -21,14 +19,6 @@ export default function SuccessPage() {
             Your invoice has been sent to your email. Please allow up to
             <strong> 48 hours</strong> for the payment to be verified before we send your tickets.
           </p>
-
-          {amount && (
-            <div className="mt-5 rounded-xl border border-earthy-dark/10 bg-earthy-light/50 px-4 py-3">
-              <div className="text-sm text-earthy-dark/80">Estimated total</div>
-              <div className="text-2xl font-bold">{amount}</div>
-              {rid && <div className="mt-1 text-xs text-earthy-dark/60">Registration ID: {rid}</div>}
-            </div>
-          )}
 
           <div className="mt-6 flex justify-center">
             <a
