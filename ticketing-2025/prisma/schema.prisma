@@ -29,9 +29,9 @@ model Registration {
   id               String        @id @default(cuid())
   name             String
   email            String
-  tickets_standing Int           @default(0)
-  tickets_chair    Int           @default(0)
+  tickets_regular  Int           @default(0)
   tickets_children Int           @default(0)
+  tickets_member   Int           @default(0)
   total_amount     Int           //store in SEK
   proof_url        String
   invoice_sent     Boolean       @default(false)
