@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Pasar Malam SIS 2025",
   description: "Ticketing system",
+  icons: {
+    icon: "/images/SIS_logo_mini.png",
+  }
 };
 
 export default function RootLayout({
