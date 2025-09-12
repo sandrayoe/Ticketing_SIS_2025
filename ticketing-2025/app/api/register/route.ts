@@ -1,58 +1,34 @@
-import { NextRequest } from 'next/server'
-import prisma from '@/lib/prisma'
+// app/api/register/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import  prisma  from '@/lib/prisma'
 
-// Set prices here 
-const PRICE_STANDING = Number(process.env.PRICE_STANDING ?? 125) // SEK
-const PRICE_CHAIR    = Number(process.env.PRICE_CHAIR ?? 150)
-const PRICE_CHILD    = Number(process.env.PRICE_CHILD ?? 0)
-const PRICE_MEMBER   = Number(process.env.PRICE_CHILD ?? 80)
+const PRICE_REGULAR = Number(process.env.PRICE_REGULAR ?? 150)
+const PRICE_MEMBER  = Number(process.env.PRICE_MEMBER  ?? 120)
+const PRICE_CHILD   = Number(process.env.PRICE_CHILD   ??  50)
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null)
-  if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const body = await req.json()
 
-  const {
-    name, email,
-    tickets_standing = 0,
-    tickets_chair = 0,
-    tickets_children = 0,
-    tickets_member = 0,
-    proof_url = ''
-  } = body
+  const tickets_regular = Number(body.tickets_regular ?? 0)
+  const tickets_member  = Number(body.tickets_member  ?? 0)
+  const tickets_children   = Number(body.tickets_child   ?? body.tickets_children ?? 0)
 
-  if (!name || typeof name !== 'string' || name.trim().length < 2)
-    return Response.json({ error: 'Name required' }, { status: 400 })
-  if (!email || typeof email !== 'string' || !email.includes('@'))
-    return Response.json({ error: 'Valid email required' }, { status: 400 })
-
-  const s = Number(tickets_standing) | 0
-  const c = Number(tickets_chair)    | 0
-  const k = Number(tickets_children) | 0
-  const m = Number(tickets_member)  | 0
-  if (s < 0 || c < 0 || k < 0) return Response.json({ error: 'Bad ticket counts' }, { status: 400 })
-
-  const total =
-    s * PRICE_STANDING +
-    c * PRICE_CHAIR +
-    k * PRICE_CHILD + 
-    m * PRICE_MEMBER
+  const total_amount =
+    tickets_regular * PRICE_REGULAR +
+    tickets_member  * PRICE_MEMBER  +
+    tickets_children   * PRICE_CHILD
 
   const reg = await prisma.registration.create({
     data: {
-      name,
-      email,
-      tickets_standing: s,
-      tickets_chair: c,
-      tickets_children: k,
-      total_amount: total,
-      proof_url: String(proof_url ?? ''),
-      // invoice_sent: default false
-      // payment_status: default pending
-      // ticket_status: default not_issued
-      // created_at: default now()
+      name: body.name,
+      email: body.email,
+      tickets_regular,
+      tickets_member,
+      tickets_children,
+      total_amount,
+      proof_url: body.proof_url ?? '',
     },
-    select: { id: true, total_amount: true }
   })
 
-  return Response.json({ ok: true, registrationId: reg.id, amount: reg.total_amount })
+  return NextResponse.json({ ok: true, registrationId: reg.id, amount: total_amount })
 }
