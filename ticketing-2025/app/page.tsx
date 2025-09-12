@@ -16,8 +16,31 @@ export default function HomePage() {
   ];
   const [current, setCurrent] = useState(0);
 
+  /* For Jumbotron */
   const prevImage = () => setCurrent(p => (p === 0 ? images.length - 1 : p - 1));
   const nextImage = () => setCurrent(p => (p === images.length - 1 ? 0 : p + 1));
+
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStart === null) return;
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
+
+    // Swipe threshold
+    if (diff > 50) {
+      // swipe left → next
+      nextImage();
+    } else if (diff < -50) {
+      // swipe right → prev
+      prevImage();
+    }
+    setTouchStart(null);
+  };
 
   return (
     <div className="min-h-svh flex flex-col bg-earthy-light text-earthy-dark">
@@ -63,7 +86,10 @@ export default function HomePage() {
 
         {/* Jumbotron (white card) — optional GREEN border */}
         <section className="relative mt-10 mb-10">
-          <div className="relative overflow-hidden rounded-3xl border border-earthy-green/40 bg-white shadow">
+          <div className="relative overflow-hidden rounded-3xl border border-earthy-green/40 bg-white shadow"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
             <img
               src={images[current]}
               alt={`Event ${current + 1}`}
