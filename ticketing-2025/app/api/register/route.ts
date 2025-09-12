@@ -5,9 +5,9 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-const PRICE_REGULAR = Number(process.env.PRICE_REGULAR ?? 150);
-const PRICE_MEMBER  = Number(process.env.PRICE_MEMBER  ?? 120);
-const PRICE_CHILD   = Number(process.env.PRICE_CHILD   ??  50);
+const PRICE_REGULAR = Number(process.env.PRICE_REGULAR ?? 125);
+const PRICE_MEMBER  = Number(process.env.PRICE_MEMBER  ?? 80);
+const PRICE_CHILD   = Number(process.env.PRICE_CHILD   ??  0);
 
 export async function POST(req: NextRequest) {
   try {
