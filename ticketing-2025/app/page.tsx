@@ -75,7 +75,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-xl text-center">
           <h1 className="flex items-center justify-center gap-2 text-3xl font-bold sm:text-4xl">
             <Clover className="h-8 w-8 text-earthy-green" />
-            Welcome!
+            Välkomna!
             <Clover className="h-8 w-8 text-earthy-green" />
           </h1>
           <p className="mt-3 text-earthy-dark/80 sm:text-lg">

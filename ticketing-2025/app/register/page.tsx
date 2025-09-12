@@ -4,6 +4,14 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { Trash2 } from "lucide-react";
 
 const shell = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8";
+// Prices for calculator
+const PRICE_REGULAR = 125;
+const PRICE_MEMBER  = 80;
+const PRICE_CHILD   = 0;
+
+function sek(n: number) {
+  return new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 0 }).format(n);
+}
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -18,7 +26,24 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const canSubmit = (proofFile || form.proof_url) && !loading && !uploading;
+
+  // For calculator
+  const totals = useMemo(() => {
+    const regQty  = Number(form.tickets_regular)  || 0;
+    const memQty  = Number(form.tickets_member)   || 0;
+    const kidQty  = Number(form.tickets_children) || 0;
+
+    const regTotal = regQty * PRICE_REGULAR;
+    const memTotal = memQty * PRICE_MEMBER;
+    const kidTotal = kidQty * PRICE_CHILD;
+
+    const grand = regTotal + memTotal + kidTotal;
+    const totalQty = regQty + memQty + kidQty;
+
+    return { regQty, memQty, kidQty, regTotal, memTotal, kidTotal, grand, totalQty };
+  }, [form.tickets_regular, form.tickets_member, form.tickets_children]);
+
+  const canSubmit = (proofFile || form.proof_url) && !loading && !uploading && (totals?.totalQty ?? 0) > 0;
 
   const isImage = useMemo(
     () => proofFile?.type?.startsWith('image/'),
@@ -50,6 +75,12 @@ export default function RegisterPage() {
     e.preventDefault();
     setMsg(null);
 
+    // Require tickets to > 0
+    if (totals.totalQty === 0) {
+      setMsg('❌ Please select at least one ticket.');
+      return;
+    }
+
     // ✅ Require proof file/url
     if (!proofFile && !form.proof_url) {
       setMsg('❌ Please attach a payment proof (image or PDF).');
@@ -77,7 +108,6 @@ export default function RegisterPage() {
       setLoading(false);
     }
   }
-
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
@@ -192,8 +222,11 @@ export default function RegisterPage() {
                       <input
                         type="number" min={0} step={1}
                         className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
-                        value={form.tickets_regular}
-                        onChange={e=>setForm(f=>({...f, tickets_regular: Number(e.target.value)}))}
+                        value={form.tickets_regular === 0 ? "" : form.tickets_regular}
+                        onChange={e => {
+                          const val = e.target.value === "" ? 0 : Number(e.target.value);
+                          setForm(f => ({ ...f, tickets_regular: val }));
+                        }}
                         placeholder="0"
                       />
                     </label>
@@ -203,8 +236,11 @@ export default function RegisterPage() {
                       <input
                         type="number" min={0} step={1}
                         className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
-                        value={form.tickets_member}
-                        onChange={e=>setForm(f=>({...f, tickets_member: Number(e.target.value)}))}
+                        value={form.tickets_member === 0 ? "" : form.tickets_member}
+                        onChange={e => {
+                          const val = e.target.value === "" ? 0 : Number(e.target.value);
+                          setForm(f => ({ ...f, tickets_member: val }));
+                        }}
                         placeholder="0"
                       />
                     </label>
@@ -214,13 +250,46 @@ export default function RegisterPage() {
                       <input
                         type="number" min={0} step={1}
                         className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
-                        value={form.tickets_children}
-                        onChange={e=>setForm(f=>({...f, tickets_children: Number(e.target.value)}))}
+                        value={form.tickets_children === 0 ? "" : form.tickets_children}
+                        onChange={e => {
+                          const val = e.target.value === "" ? 0 : Number(e.target.value);
+                          setForm(f => ({ ...f, tickets_children: val }));
+                        }}
                         placeholder="0"
                       />
                     </label>
                   </div>
                 </fieldset>
+
+                {/* Live calculator */}
+                <div className="mt-4 rounded-2xl border border-earthy-dark/10 bg-earthy-light/50 p-4 sm:p-5">
+                  <h2 className="text-sm font-semibold text-earthy-dark/80">Summary</h2>
+
+                  <div className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                    <div className="flex justify-between rounded-lg border border-earthy-dark/10 bg-white px-3 py-2">
+                      <span>Regular × {totals.regQty} @ {sek(PRICE_REGULAR)}</span>
+                      <span className="font-medium">{sek(totals.regTotal)}</span>
+                    </div>
+                    <div className="flex justify-between rounded-lg border border-earthy-dark/10 bg-white px-3 py-2">
+                      <span>Member × {totals.memQty} @ {sek(PRICE_MEMBER)}</span>
+                      <span className="font-medium">{sek(totals.memTotal)}</span>
+                    </div>
+                    <div className="flex justify-between rounded-lg border border-earthy-dark/10 bg-white px-3 py-2">
+                      <span>Children × {totals.kidQty} @ {sek(PRICE_CHILD)}</span>
+                      <span className="font-medium">{sek(totals.kidTotal)}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between rounded-xl border border-earthy-green/30 bg-white px-4 py-3">
+                    <div className="text-earthy-dark/80">
+                      <div className="text-xs">Total tickets: <span className="font-medium">{totals.totalQty}</span></div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-earthy-dark/70">Estimated total</div>
+                      <div className="text-2xl font-bold">{sek(totals.grand)}</div>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Proof uploader */}
                 <div className="rounded-2xl border border-earthy-dark/10 p-4 sm:p-5">
