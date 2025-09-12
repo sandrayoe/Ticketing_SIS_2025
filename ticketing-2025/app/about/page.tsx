@@ -57,7 +57,7 @@ export default function aboutPage() {
         <div className={`${shell} py-4 text-center text-xs`}>
           <span>© 2025 sandrayoe.</span>
           <br className="sm:hidden" />
-          <span>All pictures and documentations belong to SIS archive.</span>
+          <span> All pictures and documentations belong to SIS archive.</span>
         </div>
       </footer>
 
