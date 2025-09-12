@@ -283,6 +283,7 @@ export default function RegisterPage() {
                   <div className="mt-4 flex items-center justify-between rounded-xl border border-earthy-green/30 bg-white px-4 py-3">
                     <div className="text-earthy-dark/80">
                       <div className="text-xs">Total tickets: <span className="font-medium">{totals.totalQty}</span></div>
+                      <div className="text-xs italic">The number of tickets sent will match the number you order.</div>
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-medium text-earthy-dark/70">Estimated total</div>
