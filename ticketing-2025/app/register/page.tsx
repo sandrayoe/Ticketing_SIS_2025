@@ -296,7 +296,7 @@ export default function RegisterPage() {
                       <span className="mb-1 block text-xs font-medium">Member</span>
                     <input
                       type="number"
-                      min={1}
+                      min={0}
                       step={1}
                       className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
                       value={form.tickets_member === 0 ? "" : form.tickets_member}
