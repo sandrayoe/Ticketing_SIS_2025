@@ -307,7 +307,7 @@ export default function RegisterPage() {
                       placeholder="0"
                     />
                       <span className="mt-1 block text-[11px] text-red-600">
-                        *member tickets are for you (single) or your family only (family membership).
+                        *member tickets are for you (single) or your family only (family membership)
                       </span>
                     </label>
                   )}

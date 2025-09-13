@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Clover } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Italic } from "lucide-react";
+import { Clover, Calendar, MapPin, ArrowUpRight } from 'lucide-react';
 
 const shell = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8";
 
@@ -71,18 +71,62 @@ export default function HomePage() {
 
       {/* Main */}
       <main className={`${shell} grow py-10 sm:py-14`}>
-        {/* Welcome */}
-        <div className="mx-auto max-w-xl text-center">
-          <h1 className="flex items-center justify-center gap-2 text-3xl font-bold sm:text-4xl">
-            <Clover className="h-8 w-8 text-earthy-green" />
-            Välkomna!
-            <Clover className="h-8 w-8 text-earthy-green" />
-          </h1>
-          <p className="mt-3 text-earthy-dark/80 sm:text-lg">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-          </p>
-        </div>
+      {/* Welcome */}
+            <div className="mx-auto max-w-xl text-center">
+              <h1 className="flex items-center justify-center gap-2 text-3xl font-bold sm:text-4xl">
+                <Clover className="h-8 w-8 text-earthy-green" />
+                Välkomna!
+                <Clover className="h-8 w-8 text-earthy-green" />
+              </h1>
+            </div>
+
+            {/* Event info (wide) */}
+            <div className="mt-8">
+              <div className="mx-auto text-center w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+                <div className="space-y-4 text-earthy-dark/90 text-base sm:text-lg md:text-xl">
+                  <p className="text-earthy-dark/80">
+                    Pasar Malam is an annual event organized by the Swedish-Indonesian
+                    Society or{" "}
+                    <span className="italic">Svensk-Indonesiska Sällskapet</span> (SIS) to
+                    celebrate and promote Indonesian culture in Sweden.
+                    This year, our theme is Bhinneka Tunggal Ika /{" "}
+                    <span className="italic">Enhet i mångfald</span> (Unity in Diversity),
+                    which reflects the rich cultural diversity of Indonesia and the
+                    importance of unity among different cultures.
+                  </p>
+
+                  <p className="flex flex-col items-center sm:flex-row sm:justify-center gap-1 sm:gap-2">
+                    <span className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-earthy-green" />
+                      <span className="font-semibold">When:</span>
+                    </span>
+                    <span className="text-center sm:text-left">
+                      Saturday, 4th of October 2025,
+                      <br className="block sm:hidden" />
+                      <span className="sm:ml-1">11:00 – 18:00</span>
+                    </span>
+                  </p>
+
+                  <p className="flex flex-col items-center sm:flex-row sm:justify-center gap-1 sm:gap-2">
+                    <span className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-earthy-green" />
+                      <span className="font-semibold">Where:</span>
+                    </span>
+                    <a
+                      href="https://maps.app.goo.gl/pene8t187aXF8E8K8"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-center sm:text-left text-earthy-green hover:underline"
+                    >
+                      Botanical Garden Uppsala,
+                      <br className="block sm:hidden" />
+                      <span className="sm:ml-1">Villavägen 6–8</span>
+                    </a>
+                  </p>
+
+                </div>
+              </div>
+            </div>
 
         {/* Jumbotron (white card) — optional GREEN border */}
         <section className="relative mt-10 mb-10">

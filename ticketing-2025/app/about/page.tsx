@@ -35,22 +35,39 @@ export default function aboutPage() {
 
       {/* Main */}
       <main className={`${shell} grow py-10 sm:py-14`}>
-        {/* Welcome */}
-        <div className="mx-auto max-w-xl text-center">
-          <h1 className="text-3xl font-bold sm:text-4xl">Welcome!</h1>
-          <p className="mt-3 text-earthy-dark/80 sm:text-lg">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+        {/* About Us */}
+        <div className="mx-auto text-center w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <h1 className="text-3xl font-bold sm:text-4xl text-center">About Us</h1>
+
+          <p className="mt-6 text-earthy-dark/80 text-base sm:text-lg">
+            Pasar Malam itself is an annual event organized by SIS, which usually
+            features a variety of activities, including traditional Indonesian performances,
+            food stalls offering authentic Indonesian cuisine, and cultural
+            exhibitions. It serves as a platform for cultural exchange and fosters
+            friendship between the Swedish and Indonesian communities.
+          </p>
+
+          <p className="mt-4 text-earthy-dark/80 text-base sm:text-lg">
+            Svensk-Indonesiska Sällskapet (Swedish-Indonesian Society, Asosiasi Swedia Indonesia) is an independent, 
+            non-political and non-profit organization with the mission to strengthen the bilateral relationship between Indonesia and Sweden. 
+            We are dedicated to fostering friendship and understanding between our countries, and in the same way deepen the relationship between 
+            Indonesia and Sweden and their people. Members include Indonesians living in Sweden, 
+            and also people who have worked, studied, traveled or found their love of their life in Indonesia.
+          </p>
+
+          <p className="mt-4 text-earthy-dark/80 text-base sm:text-lg">
+            To know more about SIS, visit{" "}
+            <a 
+              href="https://svensk-indonesiska.se/" 
+              className="font-semibold text-earthy-green hover:underline" 
+              target="_blank"
+            >
+              here
+            </a>.
           </p>
         </div>
-        <div className="mx-auto max-w-xl text-center">   
-          <p className="mt-3 text-earthy-dark/80 sm:text-lg"> To know more about SIS, visit <a href="https://svensk-indonesiska.se/" className="hover:underline" target="_blank">here.</a></p>
-        </div>
       </main>
+
 
       {/* Footer (GREEN) */}
       <footer className="mt-6 border-t bg-earthy-green text-white">
