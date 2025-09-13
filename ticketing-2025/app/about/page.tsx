@@ -40,11 +40,15 @@ export default function aboutPage() {
           <h1 className="text-3xl font-bold sm:text-4xl text-center">About Us</h1>
 
           <p className="mt-6 text-earthy-dark/80 text-base sm:text-lg">
-            Pasar Malam itself is an annual event organized by SIS, which usually
+            'Pasar Malam' by its literal sense
+             means 'night market', a place full of evening entertainment,
+            For SIS, it’s an annual event which usually
             features a variety of activities, including traditional Indonesian performances,
             food stalls offering authentic Indonesian cuisine, and cultural
             exhibitions. It serves as a platform for cultural exchange and fosters
             friendship between the Swedish and Indonesian communities.
+            Last year, we brought the theme of "West Sumatra: Land of Minangkabau" with more than 
+            400 attendees joining us in the celebration.
           </p>
 
           <p className="mt-4 text-earthy-dark/80 text-base sm:text-lg">
@@ -59,7 +63,7 @@ export default function aboutPage() {
             To know more about SIS, visit{" "}
             <a 
               href="https://svensk-indonesiska.se/" 
-              className="font-semibold text-earthy-green hover:underline" 
+              className="text-earthy-green hover:underline" 
               target="_blank"
             >
               here
