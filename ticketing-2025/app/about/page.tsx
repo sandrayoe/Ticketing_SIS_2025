@@ -63,7 +63,7 @@ export default function aboutPage() {
             To know more about SIS, visit{" "}
             <a 
               href="https://svensk-indonesiska.se/" 
-              className="text-earthy-green hover:underline" 
+              className="text-earthy-green underline hover:text-earthy-brown" 
               target="_blank"
             >
               here

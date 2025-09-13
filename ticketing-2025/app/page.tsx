@@ -116,7 +116,7 @@ export default function HomePage() {
                       href="https://maps.app.goo.gl/pene8t187aXF8E8K8"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-center sm:text-left text-earthy-green hover:underline"
+                      className="text-center sm:text-left text-earthy-green hover:text-earthy-brown"
                     >
                       Botanical Garden Uppsala,
                       <br className="block sm:hidden" />
