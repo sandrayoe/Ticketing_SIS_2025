@@ -99,6 +99,12 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // mark invoice_sent = true
+      await prisma.registration.update({
+        where: { id: reg.id },
+        data: { invoice_sent: true },
+      });
+
     return NextResponse.json({ ok: true, registrationId: reg.id, amount: total_amount });
   } catch (err: any) {
     console.error('REGISTER_ERROR:', err);
