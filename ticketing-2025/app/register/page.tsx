@@ -45,6 +45,18 @@ export default function RegisterPage() {
     return { regQty, memQty, kidQty, regTotal, memTotal, kidTotal, grand, totalQty };
   }, [form.tickets_regular, form.tickets_member, form.tickets_children]);
 
+  const [isMember, setIsMember] = useState(false);
+
+  // Keep form.tickets_member in sync with the member toggle
+  useEffect(() => {
+    setForm(f => ({
+      ...f,
+      tickets_member: isMember ? 1 : 0, // 1 when member, 0 when not
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMember]);
+
+  // For proof of payment 
   const canSubmit = (proofFile || form.proof_url) && !loading && !uploading && (totals?.totalQty ?? 0) > 0;
 
   const isImage = useMemo(
@@ -215,55 +227,107 @@ export default function RegisterPage() {
                   </label>
                 </div>
 
-                {/* Tickets grid */}
-                <fieldset className="rounded-2xl border border-earthy-dark/10 p-4 sm:p-5">
-                  <legend className="px-2 text-sm font-semibold text-earthy-dark/80">
-                    Tickets
-                  </legend>
-                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <label className="block">
-                      <span className="mb-1 block text-xs font-medium">Regular</span>
-                      <input
-                        type="number" min={0} step={1}
-                        className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
-                        value={form.tickets_regular === 0 ? "" : form.tickets_regular}
-                        onChange={e => {
-                          const val = e.target.value === "" ? 0 : Number(e.target.value);
-                          setForm(f => ({ ...f, tickets_regular: val }));
-                        }}
-                        placeholder="0"
-                      />
-                    </label>
+                {/* Member question */}
+                <div className="rounded-2xl border border-earthy-dark/10 p-4 sm:p-5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-earthy-dark/80">
+                      Are you a member?
+                    </span>
+                    <div className="inline-flex overflow-hidden rounded-xl border border-earthy-dark/20">
+                      <button
+                        type="button"
+                        onClick={() => setIsMember(false)}
+                        className={`px-4 py-2 text-sm font-medium ${
+                          !isMember
+                            ? 'bg-earthy-green text-white'
+                            : 'bg-white text-earthy-dark hover:bg-earthy-light/60'
+                        }`}
+                        aria-pressed={!isMember}
+                      >
+                        No
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsMember(true)}
+                        className={`px-4 py-2 text-sm font-medium ${
+                          isMember
+                            ? 'bg-earthy-green text-white'
+                            : 'bg-white text-earthy-dark hover:bg-earthy-light/60'
+                        }`}
+                        aria-pressed={isMember}
+                      >
+                        Yes
+                      </button>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-earthy-dark/70">
+                    We will verify your membership later. Want to become a member?{" "}
+                    <a
+                      href="https://svensk-indonesiska.se/membership"
+                      className="font-medium text-earthy-green underline hover:text-earthy-brown"
+                      target="_blank"
+                    >
+                      Click here
+                    </a>
+                  </p>
 
+                </div>
+
+                {/* Tickets grid */}
+                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {/* Regular */}
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium">Regular</span>
+                    <input
+                      type="number" min={0} step={1}
+                      className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
+                      value={form.tickets_regular === 0 ? "" : form.tickets_regular}
+                      onChange={e => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        setForm(f => ({ ...f, tickets_regular: val }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
+
+                  {/* Member — show only when isMember; user can choose quantity >= 1 */}
+                  {isMember && (
                     <label className="block">
                       <span className="mb-1 block text-xs font-medium">Member</span>
-                      <input
-                        type="number" min={0} step={1}
-                        className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
-                        value={form.tickets_member === 0 ? "" : form.tickets_member}
-                        onChange={e => {
-                          const val = e.target.value === "" ? 0 : Number(e.target.value);
-                          setForm(f => ({ ...f, tickets_member: val }));
-                        }}
-                        placeholder="0"
-                      />
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
+                      value={form.tickets_member === 0 ? "" : form.tickets_member}
+                      onChange={e => {
+                        const val = Number(e.target.value);
+                        setForm(f => ({ ...f, tickets_member: isNaN(val) ? 0 : val }));
+                      }}
+                      placeholder="0"
+                    />
+                      <span className="mt-1 block text-[11px] text-red-600">
+                        *member tickets are for you (single) or your family only (family membership).
+                      </span>
                     </label>
+                  )}
 
-                    <label className="block">
-                      <span className="mb-1 block text-xs font-medium">Children</span>
-                      <input
-                        type="number" min={0} step={1}
-                        className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
-                        value={form.tickets_children === 0 ? "" : form.tickets_children}
-                        onChange={e => {
-                          const val = e.target.value === "" ? 0 : Number(e.target.value);
-                          setForm(f => ({ ...f, tickets_children: val }));
-                        }}
-                        placeholder="0"
-                      />
-                    </label>
-                  </div>
-                </fieldset>
+
+                  {/* Children */}
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium">Children</span>
+                    <input
+                      type="number" min={0} step={1}
+                      className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
+                      value={form.tickets_children === 0 ? "" : form.tickets_children}
+                      onChange={e => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        setForm(f => ({ ...f, tickets_children: val }));
+                      }}
+                      placeholder="0"
+                    />
+                  </label>
+                </div>
 
                 {/* Live calculator */}
                 <div className="mt-4 rounded-2xl border border-earthy-dark/10 bg-earthy-light/50 p-4 sm:p-5">
