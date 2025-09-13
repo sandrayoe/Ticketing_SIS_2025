@@ -25,7 +25,7 @@ export default function aboutPage() {
           </a>
 
           {/* About link — always visible */}
-          <div className="flex gap-6 text-sm sm:text-base lg:text-xl">
+          <div className="flex gap-6 text-sm sm:text-sm lg:text-lg">
             <a href="/about" className="hover:underline">
               About
             </a>
