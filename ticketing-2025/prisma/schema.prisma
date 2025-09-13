@@ -25,7 +25,34 @@ enum TicketStatus {
   used
 }
 
+enum MemberType {
+  single
+  student
+  family
+  pensioner
+}
+
+enum ReviewStatus { 
+  ok 
+  needs_member 
+  needs_ocr 
+  recheck 
+}
+
+model Member {
+  id         String     @id @default(cuid())
+  name_key   String     @unique       
+  type       MemberType
+}
+
+
 model Registration {
+  review_status    ReviewStatus  @default(ok)
+  review_reason    String?
+  member_type_detected MemberType?
+  member_checked_at    DateTime?
+  ocr_amount_detected  Int?
+  ocr_checked_at       DateTime?
   id               String        @id @default(cuid())
   name             String
   email            String
@@ -37,5 +64,27 @@ model Registration {
   invoice_sent     Boolean       @default(false)
   payment_status   PaymentStatus @default(pending)
   ticket_status    TicketStatus  @default(not_issued)
-  created_at       DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+
+  // relation to Ticket rows
+  tickets          Ticket[]
+
+  @@index([payment_status])
+  @@index([createdAt])
+  @@index([review_status])
+}
+
+model Ticket {
+  id             String       @id @default(cuid())
+  registrationId String
+  type           String                     // 'regular' | 'member' | 'children'
+  ticketNo       String       @unique      // for human code in QR/email
+  qrUrl          String
+  status         TicketStatus @default(issued)
+  createdAt      DateTime     @default(now())
+
+  registration   Registration @relation(fields: [registrationId], references: [id])
+
+  @@index([registrationId])
+  @@index([status])
 }

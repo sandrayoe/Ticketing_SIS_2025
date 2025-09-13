@@ -41,7 +41,7 @@ export default function aboutPage() {
 
           <p className="mt-6 text-earthy-dark/80 text-base sm:text-lg">
             'Pasar Malam' by its literal sense
-             means 'night market', a place full of evening entertainment,
+             means 'night market', a place full of evening entertainment.
             For SIS, it’s an annual event which usually
             features a variety of activities, including traditional Indonesian performances,
             food stalls offering authentic Indonesian cuisine, and cultural
