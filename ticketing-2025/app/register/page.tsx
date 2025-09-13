@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Trash2, Copy } from "lucide-react";
 
 const shell = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8";
 // Prices for calculator
@@ -13,6 +13,82 @@ const PRICE_CHILD   = 0;
 function sek(n: number) {
   return new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 0 }).format(n);
 }
+
+function CopyRow({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value.replace(/\s+/g, ' ').trim());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  }
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-earthy-dark/10 bg-white px-3 py-2">
+      <div>
+        <div className="text-[13px] font-medium text-earthy-dark/90">{label}</div>
+        <div className="text-sm text-earthy-dark/80">{value}</div>
+      </div>
+      <button
+        type="button"
+        onClick={copy}
+        className="rounded-md border border-earthy-dark/20 p-1.5 text-xs hover:bg-earthy-green hover:text-white"
+        aria-label={`Copy ${label}`}
+        title="Copy"
+      >
+        {copied ? <span className="px-1 text-[11px]">Copied</span> : <Copy className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+}
+
+function PaymentDetails() {
+  return (
+    <div className="rounded-3xl border border-earthy-green/40 bg-white p-6 shadow sm:p-8">
+      <h2 className="text-xl font-semibold text-earthy-dark">Payment details</h2>
+      <p className="mt-2 text-sm text-earthy-dark/80">
+        Pay using Swish, PlusGiro or bank transfer. Then upload your receipt below.
+      </p>
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        {/* Swish & PlusGiro */}
+        <div className="rounded-2xl border border-earthy-dark/10 bg-earthy-light/40 p-4">
+          <div className="text-sm font-semibold text-earthy-dark">Swish & PlusGiro</div>
+          <div className="mt-1 text-xs text-earthy-dark/70">
+            Account: <span className="font-medium">Svensk-Indonesiska Sällskapet</span>
+          </div>
+          <div className="mt-3 space-y-2">
+            <CopyRow label="Swish" value="123 673 05 27" />
+            <CopyRow label="PlusGiro" value="433 97 34-8" />
+          </div>
+        </div>
+
+        {/* Bank transfer */}
+        <div className="rounded-2xl border border-earthy-dark/10 bg-earthy-light/40 p-4">
+          <div className="text-sm font-semibold text-earthy-dark">Bank transfer</div>
+          <div className="mt-3 grid gap-2">
+            <CopyRow label="IBAN" value="SE56 9500 0099 6034 4339 7348" />
+            <CopyRow label="BIC" value="NDEASESS" />
+            <CopyRow label="Kontonummer" value="43397348" />
+            <CopyRow label="Bankkontonummer" value="9960 3443397348" />
+            <CopyRow label="Clearingnummer" value="9960" />
+          </div>
+        </div>
+      </div>
+
+      {/* Prices */}
+      <div className="mt-6 rounded-2xl border border-earthy-dark/10 bg-earthy-light/40 p-4">
+        <div className="text-sm font-semibold text-earthy-dark/90">Ticket prices</div>
+        <ul className="mt-2 list-disc pl-5 text-sm text-earthy-dark/80">
+          <li>Regular: {sek(PRICE_REGULAR)}</li>
+          <li>Member: {sek(PRICE_MEMBER)}</li>
+          <li>Children (&lt; 12 years old): Free </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -191,9 +267,9 @@ export default function RegisterPage() {
         <div className="mx-auto max-w-2xl">
           {/* Title / intro */}
           <div className="text-center">
-            <h1 className="text-3xl font-bold sm:text-4xl">Register</h1>
+            <h1 className="text-3xl font-bold sm:text-4xl">Registration</h1>
             <p className="mt-3 text-earthy-dark/80 sm:text-lg">
-              Please fill in your details and ticket quantities below.
+              Please fill in your details, ticket quantities, and proof of payment below.
             </p>
           </div>
 
@@ -267,10 +343,14 @@ export default function RegisterPage() {
                       className="font-medium text-earthy-green underline hover:text-earthy-brown"
                       target="_blank"
                     >
-                      Click here
+                      Apply here
                     </a>
                   </p>
+                </div>
 
+                {/* Payment details card */}
+                <div className="relative mt-8">
+                  <PaymentDetails />
                 </div>
 
                 {/* Tickets grid */}
