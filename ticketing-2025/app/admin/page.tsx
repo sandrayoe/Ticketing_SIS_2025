@@ -27,6 +27,8 @@ type BatchResult = {
     issuedCount: number;
     status: 'issued' | 'skipped';
     reason?: string;
+    expected?: number | null;   
+    detected?: number | null;   
   }>;
   error?: string;
 };
@@ -201,9 +203,7 @@ export default function AdminBatchPage() {
                           <td className="p-2">{r.email}</td>
                           <td className="p-2">{r.isMember ? '✅' : '❌'}</td>
                           <td className="p-2">{r.memberType ?? '-'}</td>
-                          <td className="p-2">
-                            {r.claimedMemberTickets}/{r.allowedMemberTickets}
-                          </td>
+                          <td className="p-2">{r.claimedMemberTickets}/{r.allowedMemberTickets}</td>
                           <td className="p-2">{r.willIssueTickets ? '✅' : '❌'}</td>
                         </tr>
                       ))}
@@ -223,6 +223,8 @@ export default function AdminBatchPage() {
                         <th className="p-2">Issued</th>
                         <th className="p-2">Status</th>
                         <th className="p-2">Reason</th>
+                        <th className="p-2">Expected</th>  
+                        <th className="p-2">Detected</th>  
                       </tr>
                     </thead>
                     <tbody className="text-gray-900">
@@ -243,9 +245,12 @@ export default function AdminBatchPage() {
                             </span>
                           </td>
                           <td className="p-2">{r.reason ?? '-'}</td>
+                          <td className="p-2">{r.expected ?? '-'}</td>
+                          <td className="p-2">{r.detected ?? '-'}</td>   
                         </tr>
                       ))}
                     </tbody>
+
                   </table>
                 </div>
               )}

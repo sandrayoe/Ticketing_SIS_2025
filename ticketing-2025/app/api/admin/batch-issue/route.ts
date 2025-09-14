@@ -30,41 +30,62 @@ async function verifyPaymentWithOCR(proofUrl: string, expectedAmount: number) {
   try {
     if (!proofUrl) return { ok: false, paid: null as number | null, reason: 'no_proof' };
 
-    // If you stored a public URL, strip to bucket key; else accept relative key directly:
-    const key = proofUrl.replace(
-      /^https?:\/\/[^/]+\/storage\/v1\/object\/public\/[^/]+\//,
-      ''
-    );
+    // accept: public url, signed url, or raw "bucket/key"
+    const key = toStorageKey(proofUrl);
+    if (!process.env.SUPABASE_URL)  return { ok:false, paid:null, reason:'missing_SUPABASE_URL' };
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return { ok:false, paid:null, reason:'missing_SERVICE_ROLE' };
 
-    const res = await fetch(`${process.env.SUPABASE_URL}/functions/v1/ocr-proof`, {
+    const base = `${process.env.SUPABASE_URL.replace(/\/$/, '')}/functions/v1`;
+    const url  = `${base}/ocr-proof`;
+
+    // TEMP debug (remove later)
+    console.log('OCR call =>', { url, key, expectedAmount });
+
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
       },
-      body: JSON.stringify({ path: key }),
+      body: JSON.stringify({ path: key, expectedAmount }),
     });
 
-    const data = await res.json();
-    if (!res.ok) return { ok: false, paid: null, reason: data.error || 'ocr_failed' };
+    const text = await res.text();
+    // TEMP debug (remove later)
+    console.log('OCR status', res.status, 'body', text);
+
+    const data = safeJson(text) ?? {};
+    if (!res.ok) return { ok: false, paid: null, reason: data.error || `http_${res.status}` };
 
     const paid = normalizePaidAmount(String(data.amount ?? '0'));
-    const ok = Math.abs(paid - expectedAmount) <= 3; // 3 SEK tolerance
+    const ok   = Math.abs(paid - expectedAmount) <= 3;
     return { ok, paid, reason: ok ? undefined : 'amount_mismatch' };
-  } catch {
+  } catch (e: any) {
+    console.error('OCR fetch exception:', e?.message);
     return { ok: false, paid: null, reason: 'exception' };
   }
 }
 
-function normalizePaidAmount(raw: string) {
-  // strip currency & spaces, normalize separators
-  const s = raw
-    .replace(/[^\d.,]/g, '')
-    .replace(/[\u00A0\u2000-\u200A\u202F]/g, '') // remove thin/nbsp
-    .replace(/\.(?=\d{3}\b)/g, '')               // drop thousands dots: 1.234 -> 1234
-    .replace(',', '.');                           // decimal comma -> dot
-  return Math.round(Number(s) || 0);
+function toStorageKey(urlOrKey: string) {
+  if (!/^https?:\/\//i.test(urlOrKey)) return urlOrKey.replace(/^\/+/, '');
+  return urlOrKey
+    .replace(/^https?:\/\/[^/]+\/storage\/v1\/object\/(?:public|sign)\//, '')
+    .replace(/\?.*$/, ''); // -> "payment-proofs/2024/11/abc123.jpg"
 }
+
+function safeJson(s: string) { try { return JSON.parse(s); } catch { return null; } }
+
+
+function normalizePaidAmount(raw: string) {
+  const s = raw
+    .replace(/[^\d.,+\-]/g, '')
+    .replace(/[\u00A0\u2000-\u200A\u202F]/g, '')
+    .replace(/\.(?=\d{3}\b)/g, '')
+    .replace(',', '.');
+  const n = Number(s.replace(/[+]/g, '').replace(/^-/, ''));
+  return Math.round(Number.isFinite(n) ? n : 0);
+}
+
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Unique constraint retry for ticketNo collisions
@@ -164,6 +185,8 @@ export async function GET(req: NextRequest) {
       emailError?: string;
       status: 'issued' | 'skipped';
       reason?: string;
+      expected?: number | null;   // <-- add
+      detected?: number | null;   // <-- add
     }> = [];
 
     for (const r of regs) {
@@ -224,17 +247,34 @@ export async function GET(req: NextRequest) {
               review_status: 'needs_ocr',
               review_reason: `payment_ocr_${check.reason || 'mismatch'}`,
               ocr_amount_detected: paidDetected,
-              ocr_checked_at: new Date(),
+              ocr_expected_amount: r.total_amount,
             },
           });
           results.push({
-            registrationId: r.id, name: r.name, email: r.email,
-            issuedCount: 0, emailSent: false, status: 'skipped',
+            registrationId: r.id,
+            name: r.name,
+            email: r.email,
+            issuedCount: 0,
+            emailSent: false,
+            status: 'skipped',
             reason: `payment_ocr_${check.reason || 'mismatch'}`,
+            expected: r.total_amount,
+            detected: paidDetected,
           });
           continue;
         }
+
+        // For successful OCR
+        await prisma.registration.update({
+          where: { id: r.id },
+          data: {
+            payment_status: 'confirmed',
+            ocr_amount_detected: paidDetected,
+            ocr_expected_amount: r.total_amount,
+          },
+        });
       }
+
 
       // — Generate tickets (persist regardless of later email outcome)
       const plan: { type: TicketType; count: number }[] = [

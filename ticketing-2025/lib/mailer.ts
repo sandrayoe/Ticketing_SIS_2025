@@ -144,7 +144,7 @@ function renderRegistrationHtml(params: {
     </ul>
     <p>Total: <strong>${sek(total_amount)}</strong></p>
     <p>We will send your tickets once we’ve verified your payment (up to 48 hrs).</p>
-    <p style="font-size:12px;color:#6b7280">— SIS Team //Alex</p>
+    <p style="font-size:12px;color:#6b7280">— PM Team //Alex</p>
   </div>`;
 }
 
@@ -176,7 +176,7 @@ function renderTicketsHtml(name: string, tickets: IssuedTicket[]) {
       <tbody>${rows}</tbody>
     </table>
     <p style="font-size:12px;color:#6b7280;margin-top:24px;">Problems? Reply to this email and include your ticket number(s).</p>
-    <p style="font-size:12px;color:#6b7280">— SIS Team  //Alex</p>
+    <p style="font-size:12px;color:#6b7280">— PM Team  //Alex</p>
   </div>`;
 }
 
@@ -189,7 +189,7 @@ ${lines}
 
 Show the QR at entry. Keep the ticket number as backup.
 
-— SIS Team //Alex`;
+— PM Team //Alex`;
 }
 
 function sek(n: number) {

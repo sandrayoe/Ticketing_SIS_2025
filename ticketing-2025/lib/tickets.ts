@@ -12,7 +12,7 @@ const {
   SUPABASE_SERVICE_ROLE_KEY,
   SUPABASE_QR_BUCKET,
   TICKET_SIGNING_SECRET,
-  TICKET_PREFIX = 'SIS25',
+  TICKET_PREFIX = 'PM25',
   TICKET_LEN = '4',           // length
   TICKET_USE_JWT = '1',       // 1 to include JWT inside QR for offline verif
 } = process.env;

@@ -52,8 +52,6 @@ model Registration {
   review_reason    String?
   member_type_detected MemberType?
   member_checked_at    DateTime?
-  ocr_amount_detected  Int?
-  ocr_checked_at       DateTime?
   id               String        @id @default(cuid())
   name             String
   email            String
@@ -69,13 +67,18 @@ model Registration {
   // invoice diagnostics 
   invoice_last_error         String?
   invoice_last_attempt       DateTime?
-  invoice_sent     Boolean       @default(false)
+  invoice_sent               Boolean       @default(false)
 
   // relation to Ticket rows
   tickets          Ticket[]
   tickets_email_sent         Boolean   @default(false)
   tickets_email_last_error   String?   
   tickets_email_last_attempt DateTime?
+
+  // ocr diagnostics
+  ocr_amount_detected      Int?
+  ocr_expected_amount      Int?
+  ocr_checked_at           DateTime? @db.Timestamptz(6)
 
   @@index([payment_status])
   @@index([createdAt])
