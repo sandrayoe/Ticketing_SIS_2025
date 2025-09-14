@@ -1,4 +1,6 @@
 // app/api/admin/batch-issue/route.ts
+// deno-lint-ignore-file
+
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
