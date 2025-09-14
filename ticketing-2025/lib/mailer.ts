@@ -112,10 +112,26 @@ export async function sendTicketsEmail(
 ) {
   if (!tickets?.length) return;
 
-  const html = renderTicketsHtml(recipientName, tickets);
+  // Build attachments (CID for each ticket)
+  const attachments = tickets.map(t => {
+    const cid = `qr-${t.ticketNo}@pm`; // any unique string
+    return {
+      filename: `${t.ticketNo}.png`,
+      path: t.qrUrl,                 // Nodemailer will fetch and embed
+      cid,                           // reference this in <img src="cid:...">
+      contentType: 'image/png',
+    };
+  });
+
+  // Map ticketNo -> cid for template
+  const cidByTicketNo = Object.fromEntries(
+    attachments.map(a => [a.filename.replace('.png',''), a.cid as string])
+  );
+
+  const html = renderTicketsHtml(recipientName, tickets, cidByTicketNo);
   const text = renderTicketsText(recipientName, tickets);
 
-  await sendMail({ to, subject, html, text });
+  await sendMail({ to, subject, html, text, attachments });
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -148,24 +164,36 @@ function renderRegistrationHtml(params: {
   </div>`;
 }
 
-function renderTicketsHtml(name: string, tickets: IssuedTicket[]) {
-  const rows = tickets.map(t => `
-    <tr>
-      <td style="padding:8px;border:1px solid #e5e7eb;">
-        <div style="font-weight:600">${escapeHtml(t.ticketNo)}</div>
-        <div style="font-size:12px;color:#6b7280">${escapeHtml(t.type)}</div>
-      </td>
-      <td style="padding:8px;border:1px solid #e5e7eb;">
-        <a href="${t.qrUrl}">Download QR</a>
-      </td>
-    </tr>
-  `).join('');
+function renderTicketsHtml(
+  name: string,
+  tickets: IssuedTicket[],
+  cidByTicketNo?: Record<string, string>
+) {
+  const rows = tickets.map(t => {
+    const cid = cidByTicketNo?.[t.ticketNo];
+    const imgSrc = cid ? `cid:${cid}` : t.qrUrl; // fallback to remote if no cid
+    return `
+      <tr>
+        <td style="padding:8px;border:1px solid #e5e7eb;">
+          <div style="font-weight:600">${escapeHtml(t.ticketNo)}</div>
+          <div style="font-size:12px;color:#6b7280">${escapeHtml(t.type)}</div>
+        </td>
+        <td style="padding:8px;border:1px solid #e5e7eb;">
+          <a href="${t.qrUrl}">
+            <img src="${imgSrc}"
+                 alt="QR for ${escapeHtml(t.ticketNo)}"
+                 style="display:block;width:160px;height:auto;border:0;outline:none;text-decoration:none;" />
+          </a>
+        </td>
+      </tr>
+    `;
+  }).join('');
 
   return `
   <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:640px;margin:0 auto;padding:16px;">
-    <h2 style="margin:0 0 12px 0;">Your tickets are ready 🎟️</h2>
+    <h2 style="margin:0 0 12px 0;">Your ticket(s) are ready 🎟️</h2>
     <p style="margin:0 0 16px 0;">Hi ${escapeHtml(name)},</p>
-    <p style="margin:0 0 12px 0;">Show the QR at entry. Keep the ticket number as backup.</p>
+    <p style="margin:0 0 12px 0;">Show the QR at entry and keep the ticket numbers. See you there!</p>
     <table style="border-collapse:collapse;width:100%;margin:12px 0 16px 0;">
       <thead>
         <tr>
@@ -175,19 +203,20 @@ function renderTicketsHtml(name: string, tickets: IssuedTicket[]) {
       </thead>
       <tbody>${rows}</tbody>
     </table>
-    <p style="font-size:12px;color:#6b7280;margin-top:24px;">Problems? Reply to this email and include your ticket number(s).</p>
+    <p style="font-size:12px;color:#6b7280;margin-top:24px;">Problems? Reply to this email.</p>
     <p style="font-size:12px;color:#6b7280">— PM Team  //Alex</p>
   </div>`;
 }
+
 
 function renderTicketsText(name: string, tickets: IssuedTicket[]) {
   const lines = tickets.map(t => `• ${t.ticketNo} (${t.type}) — ${t.qrUrl}`).join('\n');
   return `Hi ${name},
 
-Your tickets are ready:
+Your ticket(s) are ready:
 ${lines}
 
-Show the QR at entry. Keep the ticket number as backup.
+Show the QR at entry and keep the ticket number(s). See you there!
 
 — PM Team //Alex`;
 }
