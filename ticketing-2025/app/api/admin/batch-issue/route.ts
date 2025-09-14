@@ -95,18 +95,24 @@ async function saveTicketWithRetry(data: {
 export async function GET(req: NextRequest) {
   try {
     const onlyPending = req.nextUrl.searchParams.get('onlyPending') === '1';
+    const onlyFlagged = req.nextUrl.searchParams.get('onlyFlagged') === '1'; 
     const dryRun = req.nextUrl.searchParams.get('dryRun') === '1';
     const useOCR = req.nextUrl.searchParams.get('useOCR') === '1';
     const limit = Number(req.nextUrl.searchParams.get('limit') ?? '50');
 
-    // 1) Load members once (name_key -> MemberType)
+    // 1) Load members once (normalize DB values -> MemberType)
     const members = await prisma.member.findMany({ select: { name_key: true, type: true } });
-    const memberMap = new Map<string, MemberType>(members.map((m) => [m.name_key, m.type]));
+    const memberMap = new Map<string, MemberType>();
+    for (const m of members) {
+      memberMap.set(normalizeName(m.name_key), m.type);
+    }
+
 
     // 2) Registrations with NO tickets yet
     const regs = await prisma.registration.findMany({
       where: {
         ...(onlyPending ? { payment_status: 'pending' } : {}),
+         ...(onlyFlagged ? { review_status: { in: ['needs_member', 'needs_ocr', 'recheck'] } } : {}),
         tickets: { none: {} },
       },
       select: {
