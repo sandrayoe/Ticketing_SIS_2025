@@ -26,41 +26,39 @@ const MAX_BY_TYPE: Partial<Record<MemberType, number>> = {
 };
 
 // ───────────────────────────────────────────────────────────────────────────────
-// OCR helper (returns details so we can flag + audit)
+// OCR helper (server-to-server call to Next.js /api/ocr-proof)
 // ───────────────────────────────────────────────────────────────────────────────
-async function verifyPaymentWithOCR(proofUrl: string, expectedAmount: number) {
+const INTERNAL_API_TOKEN = process.env.INTERNAL_API_TOKEN!;
+const INTERNAL_BASE_URL =
+  process.env.INTERNAL_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: number) {
   try {
-    if (!proofUrl) return { ok: false, paid: null as number | null, reason: 'no_proof' };
+    if (!proofUrlOrKey) return { ok: false, paid: null as number | null, reason: 'no_proof' };
 
     // accept: public url, signed url, or raw "bucket/key"
-    const key = toStorageKey(proofUrl);
-    if (!process.env.SUPABASE_URL)  return { ok:false, paid:null, reason:'missing_SUPABASE_URL' };
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return { ok:false, paid:null, reason:'missing_SERVICE_ROLE' };
+    const path = toStorageKey(proofUrlOrKey);
+    if (!INTERNAL_API_TOKEN) return { ok: false, paid: null, reason: 'missing_INTERNAL_API_TOKEN' };
 
-    const base = `${process.env.SUPABASE_URL.replace(/\/$/, '')}/functions/v1`;
-    const url  = `${base}/ocr-proof`;
-
-    // TEMP debug (remove later)
-    console.log('OCR call =>', { url, key, expectedAmount });
-
-    const res = await fetch(url, {
+    const res = await fetch(`${INTERNAL_BASE_URL.replace(/\/$/, '')}/api/ocr-proof`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        'Authorization': `Bearer ${INTERNAL_API_TOKEN}`,
       },
-      body: JSON.stringify({ path: key, expectedAmount }),
+      body: JSON.stringify({ path }), // your OCR route derives amount from this
+      cache: 'no-store',
     });
 
     const text = await res.text();
-    // TEMP debug (remove later)
-    console.log('OCR status', res.status, 'body', text);
-
     const data = safeJson(text) ?? {};
-    if (!res.ok) return { ok: false, paid: null, reason: data.error || `http_${res.status}` };
+    if (!res.ok || data?.error) {
+      return { ok: false, paid: null, reason: data.error || `http_${res.status}` };
+    }
 
     const paid = normalizePaidAmount(String(data.amount ?? '0'));
-    const ok   = Math.abs(paid - expectedAmount) <= 3;
+    // allow tiny OCR jitter (±3 SEK)
+    const ok = Math.abs(paid - expectedAmount) <= 3;
     return { ok, paid, reason: ok ? undefined : 'amount_mismatch' };
   } catch (e: any) {
     console.error('OCR fetch exception:', e?.message);
@@ -68,15 +66,22 @@ async function verifyPaymentWithOCR(proofUrl: string, expectedAmount: number) {
   }
 }
 
+// Accepts: "bucket/key" OR Supabase public/signed/authenticated URL -> "bucket/key"
 function toStorageKey(urlOrKey: string) {
-  if (!/^https?:\/\//i.test(urlOrKey)) return urlOrKey.replace(/^\/+/, '');
-  return urlOrKey
-    .replace(/^https?:\/\/[^/]+\/storage\/v1\/object\/(?:public|sign)\//, '')
-    .replace(/\?.*$/, ''); // -> "payment-proofs/2024/11/abc123.jpg"
+  if (!/^https?:\/\//i.test(urlOrKey)) {
+    return urlOrKey.replace(/^\/+/, '');
+  }
+  const withoutPrefix = urlOrKey
+    .replace(
+      /^https?:\/\/[^/]+\/storage\/v1\/object\/(?:public|sign|authenticated)\//,
+      ''
+    )
+    .replace(/\?.*$/, '');
+  // IMPORTANT: decode %2F, %20, etc.
+  return decodeURIComponent(withoutPrefix);
 }
 
 function safeJson(s: string) { try { return JSON.parse(s); } catch { return null; } }
-
 
 function normalizePaidAmount(raw: string) {
   const s = raw
@@ -88,7 +93,6 @@ function normalizePaidAmount(raw: string) {
   return Math.round(Number.isFinite(n) ? n : 0);
 }
 
-
 // ───────────────────────────────────────────────────────────────────────────────
 // Unique constraint retry for ticketNo collisions
 // ───────────────────────────────────────────────────────────────────────────────
@@ -98,19 +102,38 @@ async function saveTicketWithRetry(data: {
   ticketNo: string;
   qrUrl: string;
 }) {
+  // try a few times in case ticketNo collides with unique index
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
-      return await prisma.ticket.create({ data: { ...data, status: 'issued' } });
+      return await prisma.ticket.create({
+        data: {
+          registrationId: data.registrationId,
+          type: data.type,                // Prisma enum should match your TicketType
+          ticketNo: data.ticketNo,
+          qrUrl: data.qrUrl,
+          status: 'issued',              // must match your Prisma enum value
+        },
+      });
     } catch (e: any) {
-      if (e?.code === 'P2002' && e?.meta?.target?.includes('ticketNo')) {
-        data.ticketNo = makeTicketNo(); // regenerate and retry
+      // Prisma unique constraint error
+      const isUnique =
+        e?.code === 'P2002' &&
+        (Array.isArray(e?.meta?.target)
+          ? e.meta.target.includes('ticketNo')
+          : String(e?.meta?.target || '').includes('ticketNo'));
+
+      if (isUnique) {
+        // regenerate and retry
+        data.ticketNo = makeTicketNo();
         continue;
       }
+      // not a unique error -> rethrow
       throw e;
     }
   }
-  throw new Error('Could not generate a unique ticket number');
+  throw new Error('Could not generate a unique ticket number after retries');
 }
+
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Handler
