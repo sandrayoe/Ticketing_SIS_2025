@@ -33,7 +33,8 @@ enum MemberType {
 }
 
 enum ReviewStatus { 
-  ok 
+  ok
+  pending 
   needs_member 
   needs_ocr 
   recheck 
@@ -61,13 +62,20 @@ model Registration {
   tickets_member   Int           @default(0)
   total_amount     Int           //store in SEK
   proof_url        String
-  invoice_sent     Boolean       @default(false)
   payment_status   PaymentStatus @default(pending)
   ticket_status    TicketStatus  @default(not_issued)
   createdAt       DateTime      @default(now())
 
+  // invoice diagnostics 
+  invoice_last_error         String?
+  invoice_last_attempt       DateTime?
+  invoice_sent     Boolean       @default(false)
+
   // relation to Ticket rows
   tickets          Ticket[]
+  tickets_email_sent         Boolean   @default(false)
+  tickets_email_last_error   String?   
+  tickets_email_last_attempt DateTime?
 
   @@index([payment_status])
   @@index([createdAt])

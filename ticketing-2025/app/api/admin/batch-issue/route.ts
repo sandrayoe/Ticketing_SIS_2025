@@ -3,7 +3,7 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { MemberType } from '@prisma/client';
+import { MemberType, TicketStatus } from '@prisma/client';
 import { normalizeName } from '@/lib/name-normalize';
 import {
   generateAndStoreQR,
@@ -18,7 +18,7 @@ import { sendTicketsEmail } from '@/lib/mailer';
 // ───────────────────────────────────────────────────────────────────────────────
 const MAX_BY_TYPE: Partial<Record<MemberType, number>> = {
   single: 1,
-  family: 6, // modifiable
+  family: 6,
   student: 1,
   pensioner: 1,
 };
@@ -95,10 +95,10 @@ async function saveTicketWithRetry(data: {
 export async function GET(req: NextRequest) {
   try {
     const onlyPending = req.nextUrl.searchParams.get('onlyPending') === '1';
-    const onlyFlagged = req.nextUrl.searchParams.get('onlyFlagged') === '1'; 
-    const dryRun = req.nextUrl.searchParams.get('dryRun') === '1';
-    const useOCR = req.nextUrl.searchParams.get('useOCR') === '1';
-    const limit = Number(req.nextUrl.searchParams.get('limit') ?? '50');
+    const onlyFlagged = req.nextUrl.searchParams.get('onlyFlagged') === '1';
+    const dryRun     = req.nextUrl.searchParams.get('dryRun') === '1';
+    const useOCR     = req.nextUrl.searchParams.get('useOCR') === '1';
+    const limit      = Number(req.nextUrl.searchParams.get('limit') ?? '50');
 
     // 1) Load members once (normalize DB values -> MemberType)
     const members = await prisma.member.findMany({ select: { name_key: true, type: true } });
@@ -107,12 +107,11 @@ export async function GET(req: NextRequest) {
       memberMap.set(normalizeName(m.name_key), m.type);
     }
 
-
     // 2) Registrations with NO tickets yet
     const regs = await prisma.registration.findMany({
       where: {
         ...(onlyPending ? { payment_status: 'pending' } : {}),
-         ...(onlyFlagged ? { review_status: { in: ['needs_member', 'needs_ocr', 'recheck'] } } : {}),
+        ...(onlyFlagged ? { review_status: { in: ['needs_member', 'needs_ocr', 'recheck'] } } : {}),
         tickets: { none: {} },
       },
       select: {
@@ -137,7 +136,7 @@ export async function GET(req: NextRequest) {
         const mType = memberMap.get(key); // MemberType | undefined
         const memberOk = r.tickets_member === 0 ? true : !!mType;
         const limitByType = mType ? MAX_BY_TYPE[mType] ?? 1 : 0;
-        const withinLimit = r.tickets_member <= limitByType;
+        const withinLimit = mType ? r.tickets_member <= limitByType : r.tickets_member === 0;
 
         return {
           registrationId: r.id,
@@ -147,8 +146,8 @@ export async function GET(req: NextRequest) {
           memberType: mType ?? null,
           claimedMemberTickets: r.tickets_member,
           allowedMemberTickets: mType ? limitByType : 0,
-          memberOK: memberOk && (mType ? withinLimit : r.tickets_member === 0),
-          willIssueTickets: memberOk && (mType ? withinLimit : r.tickets_member === 0),
+          memberOK: memberOk && withinLimit,
+          willIssueTickets: memberOk && withinLimit,
         };
       });
 
@@ -161,6 +160,8 @@ export async function GET(req: NextRequest) {
       name: string;
       email: string;
       issuedCount: number;
+      emailSent: boolean;
+      emailError?: string;
       status: 'issued' | 'skipped';
       reason?: string;
     }> = [];
@@ -177,9 +178,14 @@ export async function GET(req: NextRequest) {
             review_status: 'needs_member',
             review_reason: 'membership_not_found',
             member_type_detected: null,
+            member_checked_at: new Date(),
           },
         });
-        results.push({ registrationId: r.id, name: r.name, email: r.email, issuedCount: 0, status: 'skipped', reason: 'membership_not_found' });
+        results.push({
+          registrationId: r.id, name: r.name, email: r.email,
+          issuedCount: 0, emailSent: false, status: 'skipped',
+          reason: 'membership_not_found',
+        });
         continue;
       }
 
@@ -193,9 +199,14 @@ export async function GET(req: NextRequest) {
               review_status: 'needs_member',
               review_reason: `member_limit_exceeded:${mType}:${lim}`,
               member_type_detected: mType,
+              member_checked_at: new Date(),
             },
           });
-          results.push({ registrationId: r.id, name: r.name, email: r.email, issuedCount: 0, status: 'skipped', reason: `member_limit_exceeded:${mType}:${lim}` });
+          results.push({
+            registrationId: r.id, name: r.name, email: r.email,
+            issuedCount: 0, emailSent: false, status: 'skipped',
+            reason: `member_limit_exceeded:${mType}:${lim}`,
+          });
           continue;
         }
       }
@@ -213,51 +224,91 @@ export async function GET(req: NextRequest) {
               review_status: 'needs_ocr',
               review_reason: `payment_ocr_${check.reason || 'mismatch'}`,
               ocr_amount_detected: paidDetected,
+              ocr_checked_at: new Date(),
             },
           });
-          results.push({ registrationId: r.id, name: r.name, email: r.email, issuedCount: 0, status: 'skipped', reason: `payment_ocr_${check.reason || 'mismatch'}` });
+          results.push({
+            registrationId: r.id, name: r.name, email: r.email,
+            issuedCount: 0, emailSent: false, status: 'skipped',
+            reason: `payment_ocr_${check.reason || 'mismatch'}`,
+          });
           continue;
         }
       }
 
-      // — Generate tickets
+      // — Generate tickets (persist regardless of later email outcome)
       const plan: { type: TicketType; count: number }[] = [
-        { type: 'regular', count: r.tickets_regular },
-        { type: 'member', count: r.tickets_member },
+        { type: 'regular',  count: r.tickets_regular },
+        { type: 'member',   count: r.tickets_member },
         { type: 'children', count: r.tickets_children },
       ];
 
       const issued: IssuedTicket[] = [];
-
       for (const { type, count } of plan) {
         for (let i = 0; i < count; i++) {
-          const ticketNo = makeTicketNo(); // uses env prefix/length
+          const ticketNo = makeTicketNo();
           const { qrUrl, token } = await generateAndStoreQR(r.id, ticketNo);
-
           await saveTicketWithRetry({ registrationId: r.id, type, ticketNo, qrUrl });
           issued.push({ ticketNo, qrUrl, token, type });
         }
       }
 
-      // — Email the registrant
-      if (issued.length > 0) {
-        await sendTicketsEmail(r.email, r.name, issued);
-      }
-
-      // — Mark success (no flags)
+      // — Mark registration tickets status to "issued"
       await prisma.registration.update({
         where: { id: r.id },
         data: {
-          payment_status: useOCR ? 'confirmed' : undefined,
-          invoice_sent: issued.length > 0 ? true : undefined,
+          ticket_status: 'issued' satisfies TicketStatus,
+          // clear/confirm checks as applicable
           review_status: 'ok',
           review_reason: null,
           member_type_detected: mType ?? null,
-          ocr_amount_detected: useOCR ? r.total_amount : undefined,
+          member_checked_at: mType ? new Date() : undefined,
+          ...(useOCR
+            ? { payment_status: 'confirmed', ocr_amount_detected: r.total_amount, ocr_checked_at: new Date() }
+            : {}),
         },
       });
 
-      results.push({ registrationId: r.id, name: r.name, email: r.email, issuedCount: issued.length, status: 'issued' });
+      // — Email the registrant (tickets email) — do not affect invoice fields
+      let emailOk = true;
+      let emailErr = '';
+      if (issued.length > 0) {
+        try {
+          await sendTicketsEmail(r.email, r.name, issued);
+          await prisma.registration.update({
+            where: { id: r.id },
+            data: {
+              tickets_email_sent: true,
+              tickets_email_last_error: null,
+              tickets_email_last_attempt: new Date(),
+            },
+          });
+        } catch (e: any) {
+          emailOk = false;
+          emailErr = e?.message || 'email_send_failed';
+          await prisma.registration.update({
+            where: { id: r.id },
+            data: {
+              tickets_email_sent: false,
+              tickets_email_last_error: emailErr,
+              tickets_email_last_attempt: new Date(),
+              review_status: 'recheck',
+              review_reason: `tickets_email_failed:${emailErr}`,
+            },
+          });
+        }
+      }
+
+      results.push({
+        registrationId: r.id,
+        name: r.name,
+        email: r.email,
+        issuedCount: issued.length,
+        emailSent: emailOk,
+        emailError: emailOk ? undefined : emailErr,
+        status: 'issued',
+        reason: emailOk ? undefined : `tickets_email_failed:${emailErr}`,
+      });
     }
 
     return NextResponse.json({ ok: true, processed: results.length, results });
@@ -265,3 +316,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: e.message || 'internal error' }, { status: 500 });
   }
 }
+
