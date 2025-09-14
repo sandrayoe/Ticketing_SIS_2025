@@ -18,7 +18,7 @@ import { sendTicketsEmail } from '@/lib/mailer';
 // ───────────────────────────────────────────────────────────────────────────────
 const MAX_BY_TYPE: Partial<Record<MemberType, number>> = {
   single: 1,
-  family: 6, // your rule
+  family: 6, // modifiable
   student: 1,
   pensioner: 1,
 };
@@ -200,7 +200,7 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // — Optional OCR check → flag & skip if mismatch
+      // — OCR check → flag & skip if mismatch
       let paidDetected: number | null = null;
       if (useOCR) {
         const check = await verifyPaymentWithOCR(r.proof_url, r.total_amount);
