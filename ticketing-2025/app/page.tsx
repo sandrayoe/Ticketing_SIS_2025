@@ -117,11 +117,14 @@ export default function HomePage() {
                       href="https://maps.app.goo.gl/pene8t187aXF8E8K8"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-center sm:text-left text-earthy-green hover:text-earthy-brown"
+                      className="flex items-center gap-1 text-center sm:text-left text-earthy-green hover:text-earthy-brown"
                     >
-                      Botanical Garden Uppsala,
-                      <br className="block sm:hidden" />
-                      <span className="sm:ml-1">Villavägen 6–8</span>
+                      <span>
+                        Botanical Garden Uppsala,
+                        <br className="block sm:hidden" />
+                        <span className="sm:ml-1">Villavägen 6–8</span>
+                      </span>
+                      <ArrowUpRight className="h-4 w-4" />
                     </a>
                   </p>
 
