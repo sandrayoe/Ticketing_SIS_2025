@@ -89,8 +89,8 @@ export default function HomePage() {
                     Society or{" "}
                     <span className="italic">Svensk-Indonesiska Sällskapet</span> (SIS) to
                     celebrate and promote Indonesian culture in Sweden.
-                    To celebrate 75 years of friendship between Indonesia and Sweden
-                    this year, our theme is Bhinneka Tunggal Ika /{" "}
+                    This year, to celebrate 75 years of friendship between Indonesia and Sweden, 
+                    our theme is Bhinneka Tunggal Ika /{" "}
                     <span className="italic">Enhet i mångfald</span> (Unity in Diversity).
                     This theme reflects the rich cultural diversity of Indonesia and the
                     importance of unity among different cultures.
