@@ -518,9 +518,9 @@ export default function RegisterPage() {
       {/* Footer (GREEN) */}
       <footer className="mt-6 border-t bg-earthy-green text-white">
         <div className={`${shell} py-4 text-center text-xs`}>
-          <span>© 2025 sandrayoe.</span>
+          <span>© 2025 SIS.</span>
           <br className="sm:hidden" />
-          <span> All pictures and documentations belong to SIS archive.</span>
+          <span> All rights reserved.</span>
         </div>
       </footer>
     </div>

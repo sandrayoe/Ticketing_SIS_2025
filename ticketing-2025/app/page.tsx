@@ -103,7 +103,7 @@ export default function HomePage() {
                     <span className="text-center sm:text-left">
                       Saturday, 4th of October 2025,
                       <br className="block sm:hidden" />
-                      <span className="sm:ml-1">11:00 – 18:00</span>
+                      <span className="sm:ml-1">11:00 – 17:00</span>
                     </span>
                   </p>
 
@@ -186,9 +186,9 @@ export default function HomePage() {
       {/* Footer (GREEN) */}
       <footer className="mt-6 border-t bg-earthy-green text-white">
         <div className={`${shell} py-4 text-center text-xs`}>
-          <span>© 2025 sandrayoe.</span>
+          <span>© 2025 SIS.</span>
           <br className="sm:hidden" />
-          <span> All pictures and documentations belong to SIS archive.</span>
+          <span> All rights reserved.</span>
         </div>
       </footer>
 
