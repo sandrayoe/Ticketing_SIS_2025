@@ -147,7 +147,7 @@ function renderRegistrationHtml(params: {
   total_amount: number;
   regId: string;
 }) {
-  const { name, tickets_regular, tickets_member, tickets_children, total_amount, regId } = params;
+  const { name, tickets_regular, tickets_member, tickets_student, tickets_children, total_amount, regId } = params;
 
   return `
   <div style="font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:640px;margin:0 auto;padding:16px;">
@@ -158,6 +158,7 @@ function renderRegistrationHtml(params: {
     <ul>
       <li>Regular: ${tickets_regular}</li>
       <li>Member: ${tickets_member}</li>
+      <li>Student: ${tickets_student}</li>
       <li>Children: ${tickets_children}</li>
     </ul>
     <p>Total: <strong>${sek(total_amount)}</strong></p>

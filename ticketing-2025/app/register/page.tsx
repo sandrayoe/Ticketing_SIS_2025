@@ -312,7 +312,7 @@ export default function RegisterPage() {
                 <div className="rounded-2xl border border-earthy-dark/10 p-4 sm:p-5">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-earthy-dark/80">
-                      Are you a member?
+                      Are you a SIS member?
                     </span>
                     <div className="inline-flex overflow-hidden rounded-xl border border-earthy-dark/20">
                       <button
