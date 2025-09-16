@@ -1,13 +1,9 @@
 // app/success/page.tsx
-"use client";
-
-import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 const shell = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8";
 
 export default function SuccessPage() {
-  const params = useSearchParams();
-
   return (
     <div className="min-h-svh flex flex-col bg-earthy-light text-earthy-dark">
       <main className={`${shell} grow flex items-center justify-center py-10 sm:py-14`}>
@@ -15,18 +11,18 @@ export default function SuccessPage() {
           <h1 className="text-2xl font-bold">We are processing your order</h1>
 
           <p className="mt-4 text-earthy-dark/80 leading-relaxed">
-            Thank you for registering.
-            Your invoice has been sent to your email. Please allow up to
-            <strong> 48 hours</strong> for the payment to be verified before we send your tickets.
+            Thank you for registering. Your invoice has been sent to your email.
+            Please allow up to <strong>48 hours</strong> for the payment to be verified
+            before we send your tickets.
           </p>
 
           <div className="mt-6 flex justify-center">
-            <a
+            <Link
               href="/"
               className="rounded-xl bg-earthy-brown px-6 py-3 text-sm font-semibold text-earthy-dark shadow hover:bg-earthy-green hover:text-white focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-earthy-green"
             >
               Back to Home
-            </a>
+            </Link>
           </div>
 
           <p className="mt-6 text-xs text-earthy-dark/60">
