@@ -167,6 +167,7 @@ export async function GET(req: NextRequest) {
         proof_url: true,
         tickets_regular: true,
         tickets_member: true,
+        tickets_student: true,
         tickets_children: true,
         total_amount: true,
         createdAt: true,
@@ -305,6 +306,7 @@ export async function GET(req: NextRequest) {
       const plan: { type: TicketType; count: number }[] = [
         { type: 'regular',  count: r.tickets_regular },
         { type: 'member',   count: r.tickets_member },
+        { type: 'student',   count: r.tickets_student },
         { type: 'children', count: r.tickets_children },
       ];
 

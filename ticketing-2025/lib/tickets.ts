@@ -3,13 +3,13 @@ import { customAlphabet } from 'nanoid';
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
 
-export type TicketType = 'regular' | 'member' | 'children';
+export type TicketType = 'regular' | 'member' | 'student' | 'children' ;
 export type IssuedTicket = { ticketNo: string; qrUrl: string; type: TicketType; token: string };
 
 const {
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
-  SUPABASE_QR_BUCKET,         // <- prefer this env name
+  SUPABASE_QR_BUCKET,         
   TICKET_SIGNING_SECRET,
   TICKET_PREFIX = 'PM25',
   TICKET_LEN = '4',
