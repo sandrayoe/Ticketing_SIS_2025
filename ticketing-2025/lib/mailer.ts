@@ -83,14 +83,15 @@ export async function sendRegistrationEmail(params: {
   name: string;
   tickets_regular: number;
   tickets_member: number;
+  tickets_student: number;
   tickets_children: number;
   total_amount: number;
   regId: string;
 }) {
-  const { to, name, tickets_regular, tickets_member, tickets_children, total_amount, regId } = params;
+  const { to, name, tickets_regular, tickets_member, tickets_student, tickets_children, total_amount, regId } = params;
 
   const html = renderRegistrationHtml({
-    name, tickets_regular, tickets_member, tickets_children, total_amount, regId,
+    name, tickets_regular, tickets_member, tickets_student, tickets_children, total_amount, regId,
   });
 
   await sendMail({
@@ -142,6 +143,7 @@ function renderRegistrationHtml(params: {
   tickets_regular: number;
   tickets_member: number;
   tickets_children: number;
+  tickets_student: number;
   total_amount: number;
   regId: string;
 }) {

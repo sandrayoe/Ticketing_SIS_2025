@@ -6,8 +6,9 @@ import { Trash2, Copy } from "lucide-react";
 
 const shell = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8";
 // Prices for calculator
-const PRICE_REGULAR = 125;
-const PRICE_MEMBER  = 80;
+const PRICE_REGULAR = 100;
+const PRICE_MEMBER  = 60;
+const PRICE_STUDENT = 60;
 const PRICE_CHILD   = 0;
 
 function sek(n: number) {
@@ -82,6 +83,7 @@ function PaymentDetails() {
         <ul className="mt-2 list-disc pl-5 text-sm text-earthy-dark/80">
           <li>Regular: {sek(PRICE_REGULAR)}</li>
           <li>Member: {sek(PRICE_MEMBER)}</li>
+          <li>Student: {sek(PRICE_STUDENT)}</li>
           <li>Children (&lt; 12 years old): Free </li>
         </ul>
       </div>
@@ -97,6 +99,7 @@ export default function RegisterPage() {
     email: '',
     tickets_regular: 0,
     tickets_member: 0,
+    tickets_student: 0,
     tickets_children: 0,
     proof_url: '', // will be set after upload
   });
@@ -110,16 +113,18 @@ export default function RegisterPage() {
     const regQty  = Number(form.tickets_regular)  || 0;
     const memQty  = Number(form.tickets_member)   || 0;
     const kidQty  = Number(form.tickets_children) || 0;
+    const stuQty  = Number(form.tickets_student)  || 0; 
 
     const regTotal = regQty * PRICE_REGULAR;
     const memTotal = memQty * PRICE_MEMBER;
     const kidTotal = kidQty * PRICE_CHILD;
+    const stuTotal = stuQty * PRICE_STUDENT;
 
-    const grand = regTotal + memTotal + kidTotal;
-    const totalQty = regQty + memQty + kidQty;
+    const grand = regTotal + memTotal + stuTotal + kidTotal;
+    const totalQty = regQty + memQty + kidQty + stuQty; 
 
-    return { regQty, memQty, kidQty, regTotal, memTotal, kidTotal, grand, totalQty };
-  }, [form.tickets_regular, form.tickets_member, form.tickets_children]);
+    return { regQty, memQty, kidQty, stuQty, regTotal, memTotal, kidTotal, stuTotal, grand, totalQty };
+}, [form.tickets_regular, form.tickets_member, form.tickets_children, form.tickets_student]);
 
   const [isMember, setIsMember] = useState(false);
 
@@ -354,9 +359,9 @@ export default function RegisterPage() {
                 </div>
 
                 {/* Tickets grid */}
-                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {/* Regular */}
-                  <label className="block">
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  {/* Regular (top-left) */}
+                  <label className="block order-1">
                     <span className="mb-1 block text-xs font-medium">Regular</span>
                     <input
                       type="number" min={0} step={1}
@@ -370,31 +375,26 @@ export default function RegisterPage() {
                     />
                   </label>
 
-                  {/* Member — show only when isMember; user can choose quantity >= 1 */}
-                  {isMember && (
-                    <label className="block">
-                      <span className="mb-1 block text-xs font-medium">Member</span>
+                  {/* Student (top-right) */}
+                  <label className="block order-2">
+                    <span className="mb-1 block text-xs font-medium">Student</span>
                     <input
-                      type="number"
-                      min={0}
-                      step={1}
+                      type="number" min={0} step={1}
                       className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
-                      value={form.tickets_member === 0 ? "" : form.tickets_member}
+                      value={form.tickets_student === 0 ? "" : form.tickets_student}
                       onChange={e => {
-                        const val = Number(e.target.value);
-                        setForm(f => ({ ...f, tickets_member: isNaN(val) ? 0 : val }));
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        setForm(f => ({ ...f, tickets_student: val }));
                       }}
                       placeholder="0"
                     />
-                      <span className="mt-1 block text-[11px] text-red-600">
-                        *member tickets are for you (single) or your family only (family membership)
-                      </span>
-                    </label>
-                  )}
+                    <span className="mt-1 block text-[11px] text-red-600">
+                      *valid only for students/pensionar
+                    </span>
+                  </label>
 
-
-                  {/* Children */}
-                  <label className="block">
+                  {/* Children (bottom-left) */}
+                  <label className="block order-3">
                     <span className="mb-1 block text-xs font-medium">Children</span>
                     <input
                       type="number" min={0} step={1}
@@ -407,12 +407,31 @@ export default function RegisterPage() {
                       placeholder="0"
                     />
                   </label>
+
+                  {/* Member (bottom-right, only when isMember) */}
+                  {isMember && (
+                    <label className="block order-4">
+                      <span className="mb-1 block text-xs font-medium">Member</span>
+                      <input
+                        type="number" min={0} step={1}
+                        className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
+                        value={form.tickets_member === 0 ? "" : form.tickets_member}
+                        onChange={e => {
+                          const val = Number(e.target.value);
+                          setForm(f => ({ ...f, tickets_member: isNaN(val) ? 0 : val }));
+                        }}
+                        placeholder="0"
+                      />
+                      <span className="mt-1 block text-[11px] text-red-600">
+                        *member tickets are for you (single) or your family only (family membership)
+                      </span>
+                    </label>
+                  )}
                 </div>
 
                 {/* Live calculator */}
                 <div className="mt-4 rounded-2xl border border-earthy-dark/10 bg-earthy-light/50 p-4 sm:p-5">
                   <h2 className="text-sm font-semibold text-earthy-dark/80">Summary</h2>
-
                   <div className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                     <div className="flex justify-between rounded-lg border border-earthy-dark/10 bg-white px-3 py-2">
                       <span>Regular × {totals.regQty} @ {sek(PRICE_REGULAR)}</span>
@@ -422,6 +441,11 @@ export default function RegisterPage() {
                       <span>Member × {totals.memQty} @ {sek(PRICE_MEMBER)}</span>
                       <span className="font-medium">{sek(totals.memTotal)}</span>
                     </div>
+                    <div className="flex justify-between rounded-lg border border-earthy-dark/10 bg-white px-3 py-2">
+                      <span>Student × {totals.stuQty} @ {sek(PRICE_STUDENT)}</span>
+                      <span className="font-medium">{sek(totals.stuTotal)}</span>
+                    </div>
+
                     <div className="flex justify-between rounded-lg border border-earthy-dark/10 bg-white px-3 py-2">
                       <span>Children × {totals.kidQty} @ {sek(PRICE_CHILD)}</span>
                       <span className="font-medium">{sek(totals.kidTotal)}</span>
