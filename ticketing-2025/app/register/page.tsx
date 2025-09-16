@@ -438,16 +438,16 @@ export default function RegisterPage() {
                       <span className="font-medium">{sek(totals.regTotal)}</span>
                     </div>
                     <div className="flex justify-between rounded-lg border border-earthy-dark/10 bg-white px-3 py-2">
+                      <span>Children × {totals.kidQty} @ {sek(PRICE_CHILD)}</span>
+                      <span className="font-medium">{sek(totals.kidTotal)}</span>
+                    </div>
+                    <div className="flex justify-between rounded-lg border border-earthy-dark/10 bg-white px-3 py-2">
                       <span>Student × {totals.stuQty} @ {sek(PRICE_STUDENT)}</span>
                       <span className="font-medium">{sek(totals.stuTotal)}</span>
                     </div>
                     <div className="flex justify-between rounded-lg border border-earthy-dark/10 bg-white px-3 py-2">
                       <span>Member × {totals.memQty} @ {sek(PRICE_MEMBER)}</span>
                       <span className="font-medium">{sek(totals.memTotal)}</span>
-                    </div>
-                    <div className="flex justify-between rounded-lg border border-earthy-dark/10 bg-white px-3 py-2">
-                      <span>Children × {totals.kidQty} @ {sek(PRICE_CHILD)}</span>
-                      <span className="font-medium">{sek(totals.kidTotal)}</span>
                     </div>
                   </div>
 
