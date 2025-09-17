@@ -110,7 +110,7 @@ export default function ManualRegisterPage() {
           <div className="text-center">
             <h1 className="text-3xl font-bold sm:text-4xl">Manual Registration</h1>
             <p className="mt-3 text-earthy-dark/80 sm:text-lg">
-              Enter attendee details and ticket quantities. No file upload — just confirm you’ve seen their payment.
+              Enter attendee details and ticket quantities. No file upload — just confirm the staff has seen your payment.
             </p>
           </div>
 
@@ -193,7 +193,7 @@ export default function ManualRegisterPage() {
                       label="Member"
                       value={form.tickets_member}
                       onChange={v => setForm(f => ({ ...f, tickets_member: v }))}
-                      hint="*member tickets are for you (single) or your family only"
+                      hint="*member tickets are for you or your family only (family membership - max 5)"
                     />
                   )}
                 </div>

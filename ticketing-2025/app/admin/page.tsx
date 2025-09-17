@@ -27,7 +27,7 @@ type BatchResult = {
     name: string;
     email: string;
     issuedCount: number;
-    status: 'issued' | 'skipped';
+    status: 'issued' | 'not_issued';
     reason?: string;
     expected?: number | null;
     detected?: number | null;
