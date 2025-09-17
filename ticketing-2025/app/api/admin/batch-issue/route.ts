@@ -54,7 +54,22 @@ async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: numbe
       return { ok: false, paid: null, reason: data.error || `http_${res.status}` };
     }
 
-    const paid = normalizePaidAmount(String(data.amount ?? '0'));
+    // 1) Try the API's parsed amount first
+    let paid: number | null = null;
+    if (data.amount != null) {
+      paid = normalizePaidAmount(String(data.amount));
+    }
+
+    // 2) Fallback: parse from raw OCR text (handles 60\nkr, 60:-, kr 60, etc.)
+    if ((!paid || paid === 0) && data.raw) {
+      paid = detectSEKFromRaw(String(data.raw), expectedAmount);
+    }
+
+    // 3) Final decision
+    if (!paid || paid <= 0) {
+      return { ok: false, paid: paid ?? null, reason: 'amount_not_found' };
+    }
+
     const ok = Math.abs(paid - expectedAmount) <= 3; // allow tiny OCR jitter
     return { ok, paid, reason: ok ? undefined : 'amount_mismatch' };
   } catch (e: any) {
@@ -62,6 +77,54 @@ async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: numbe
     return { ok: false, paid: null, reason: 'exception' };
   }
 }
+
+/** Super-tolerant SEK detector for messy OCR text. Picks the candidate closest to expected. */
+function detectSEKFromRaw(raw: string, expected: number): number | null {
+  // Normalize common OCR quirks
+  let t = String(raw)
+    .replace(/[\u00A0\u2000-\u200A\u202F]/g, ' ') // weird spaces
+    .replace(/[–—]/g, '-')                        // en/em dash to hyphen
+    .replace(/O(?=(?:\D|$))/g, '0');              // lone 'O' -> 0 at number end
+
+  // Join "number NEWLINE kr" into one line to help regex
+  const joined = t.replace(/\s*\n\s*/g, ' ');
+
+  const nums: number[] = [];
+
+  // A) "102 kr", "60 sek" (case-insensitive, across what was newlines)
+  for (const m of joined.matchAll(/([+-]?\d{1,4}(?:[ .]\d{3})*(?:[.,]\d{1,2})?)\s*(?:kr|sek)\b/gi)) {
+    const v = normalizePaidAmount(m[1]);
+    if (v > 0 && v < 200000) nums.push(v);
+  }
+
+  // B) "kr 60" (currency first)
+  for (const m of joined.matchAll(/\b(?:kr|sek)\s*([+-]?\d{1,4}(?:[ .]\d{3})*(?:[.,]\d{1,2})?)/gi)) {
+    const v = normalizePaidAmount(m[1]);
+    if (v > 0 && v < 200000) nums.push(v);
+  }
+
+  // C) Swedish style without currency: "60:-" / "60 :-" / "60,-"
+  for (const m of joined.matchAll(/\b(\d{1,4})(?:\s*[:\-,]\s*-?)\b/g)) {
+    const v = normalizePaidAmount(m[1]);
+    if (v > 0 && v < 200000) nums.push(v);
+  }
+
+  // D) Numbers near Swedish/English amount words
+  for (const m of joined.matchAll(/\b(?:summa|belopp|att\s+betala|betalt|amount|total)\b[^0-9]{0,15}(\d{1,4}(?:[.,]\d{1,2})?)/gi)) {
+    const v = normalizePaidAmount(m[1]);
+    if (v > 0 && v < 200000) nums.push(v);
+  }
+
+  if (!nums.length) return null;
+
+  // Prefer the one closest to expected (reduces picking ref/phone numbers)
+  let best = nums[0];
+  for (const v of nums) {
+    if (Math.abs(v - expected) < Math.abs(best - expected)) best = v;
+  }
+  return best;
+}
+
 
 function toStorageKey(urlOrKey: string) {
   if (!/^https?:\/\//i.test(urlOrKey)) return urlOrKey.replace(/^\/+/, '');
