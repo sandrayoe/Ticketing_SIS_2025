@@ -189,10 +189,6 @@ export default function AdminCheckinPage() {
                 </div>
               </div>
             )}
-
-            <p className="mt-2 text-sm text-earthy-dark/70">
-              Last scanned: <span className="font-mono">{lastTicketNo || '—'}</span>
-            </p>
           </div>
 
           <div className="rounded-2xl border border-earthy-green/40 bg-white p-4 shadow">
