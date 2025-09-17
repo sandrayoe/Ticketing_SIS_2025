@@ -44,28 +44,38 @@ function normalizePaidAmount(raw: string) {
 }
 
 function extractAmountSEK(text: string): number | null {
-  const lines = text.split(/\r?\n/);
-  const moneyRE = /([+-]?\d{1,3}(?:[ .]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(kr|sek)\b/i;
-  const candidates: number[] = [];
-  for (const line of lines) {
-    const m = line.match(moneyRE);
-    if (m) {
-      const v = normalizePaidAmount(m[1]);
-      if (v > 0 && v < 200000) candidates.push(v);
-    }
-  }
-  if (candidates.length) return candidates[0];
+  // normalize weird spaces
+  const cleaned = text.replace(/[\u00A0\u2000-\u200A\u202F]/g, ' ');
 
-  const anyRE = /[+-]?\d{2,5}(?:[.,]\d{1,2})?/g;
-  const any = text.match(anyRE);
-  if (any) {
-    for (const tok of any) {
-      const v = normalizePaidAmount(tok);
-      if (v > 0) return v;
-    }
+  // 1) Match numbers followed by "kr"/"sek" even across newlines
+  const moneyRE = /([+-]?\d{1,3}(?:[ .]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:kr|sek)\b/gi;
+
+  const candidates: number[] = [];
+  for (const m of cleaned.matchAll(moneyRE)) {
+    const v = normalizePaidAmount(m[1]);
+    if (v > 0 && v < 200000) candidates.push(v);
   }
+  if (candidates.length) return Math.max(...candidates);
+
+  // 2) Explicit pass for "number NEWLINE kr"
+  const splitLineRE = /([+-]?\d+(?:[.,]\d{1,2})?)\s*[\r\n]+\s*(?:kr|sek)\b/gi;
+  for (const m of cleaned.matchAll(splitLineRE)) {
+    const v = normalizePaidAmount(m[1]);
+    if (v > 0 && v < 200000) return v;
+  }
+
+  // 3) Last resort: look near currency words
+  const aroundCurrencyRE =
+    /(?:amount|summa|belopp|paid|betalt)[^\d]{0,15}([+-]?\d{1,3}(?:[ .]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i;
+  const near = cleaned.match(aroundCurrencyRE);
+  if (near) {
+    const v = normalizePaidAmount(near[1]);
+    if (v > 0 && v < 200000) return v;
+  }
+
   return null;
 }
+
 
 export async function POST(req: NextRequest) {
   try {
