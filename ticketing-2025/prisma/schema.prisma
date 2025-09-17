@@ -96,6 +96,10 @@ model Ticket {
   status         TicketStatus @default(issued)
   createdAt      DateTime     @default(now())
 
+  // check-in
+  checkedIn      Boolean  @default(false)
+  checkedInAt    DateTime?
+
   registration   Registration @relation(fields: [registrationId], references: [id])
 
   @@index([registrationId])
