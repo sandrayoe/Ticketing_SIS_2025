@@ -1,94 +1,80 @@
-import QRCode from 'qrcode';
-import { customAlphabet } from 'nanoid';
-import { createClient } from '@supabase/supabase-js';
-import jwt from 'jsonwebtoken';
+// run this if i want to reset ticket numbers
+// alter sequence public.ticket_seq restart with 1;
+// in supabase or prisma (migration.sql)
+// npx prisma migrate dev --create-only -n reset_ticket_seq_2026
 
-export type TicketType = 'regular' | 'member' | 'student' | 'children' ;
+import QRCode from 'qrcode';
+import jwt from 'jsonwebtoken';
+import { createClient } from '@supabase/supabase-js';
+import prisma from '@/lib/prisma'; 
+
+export type TicketType = 'regular' | 'member' | 'student' | 'children';
 export type IssuedTicket = { ticketNo: string; qrUrl: string; type: TicketType; token: string };
 
 const {
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
-  SUPABASE_QR_BUCKET,         
+  SUPABASE_QR_BUCKET,
   TICKET_SIGNING_SECRET,
   TICKET_PREFIX = 'PM25',
-  TICKET_LEN = '4',
   TICKET_USE_JWT = '1',
 } = process.env;
 
-// Reuse a single server client (service role – server only!)
 const sb = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-
-// "ABC..." no 0/O/1/I for readability
-const nano = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', Number(TICKET_LEN) || 4);
-
-export function makeTicketNo(prefix = TICKET_PREFIX) {
-  return `${prefix}-${nano()}`;
-}
 
 function maybeSignTicket(payload: object) {
   if (TICKET_USE_JWT === '1') {
-    if (!TICKET_SIGNING_SECRET) {
-      throw new Error('TICKET_SIGNING_SECRET is required when TICKET_USE_JWT=1');
-    }
+    if (!TICKET_SIGNING_SECRET) throw new Error('TICKET_SIGNING_SECRET is required when TICKET_USE_JWT=1');
     return jwt.sign(payload, TICKET_SIGNING_SECRET, { algorithm: 'HS256', expiresIn: '365d' });
   }
-  return ''; // no token
+  return '';
 }
 
-// Generate a PNG image *buffer* for the given QR text
-async function makeQrPngBufferFromText(text: string): Promise<Uint8Array> {
-  // qrcode.toBuffer returns a Node Buffer (Uint8Array) in Node environments
-  return await QRCode.toBuffer(text, {
-    type: 'png',
-    errorCorrectionLevel: 'M', // good tradeoff
-    margin: 2,                 // quiet zone
-    scale: 6,                  // size
-  });
+export async function makeTicketNo(prefix = process.env.TICKET_PREFIX ?? 'PM25') {
+  const rows = await prisma.$queryRaw<{ next_ticket_code: string }[]>`
+    select public.next_ticket_code(${prefix}) as next_ticket_code
+  `;
+  const code = rows?.[0]?.next_ticket_code;
+  if (!code) throw new Error('next_ticket_code returned no value');
+  return code;
+}
+
+
+async function makeQrPngBuffer(text: string): Promise<Uint8Array> {
+  return QRCode.toBuffer(text, { type: 'png', errorCorrectionLevel: 'M', margin: 2, scale: 6 });
 }
 
 export async function generateAndStoreQR(regId: string, ticketNo: string) {
-  const QR_BUCKET = process.env.QR_BUCKET || 'tickets-qr'; // unify names
+  const bucket = SUPABASE_QR_BUCKET || 'tickets-qr';
+  const token = maybeSignTicket({ t: ticketNo, r: regId });
+  const qrText = token || ticketNo;
 
-  // Decide what goes *inside* the QR
-  const payload = { t: ticketNo, r: regId };         // minimal payload
-  const token   = maybeSignTicket(payload);          // '' if JWT disabled
-  const qrText  = token || ticketNo;                 // encode JWT if available, else the ticketNo
-
-  // 1) PNG bytes (the "buffer")
-  const pngBuffer = await makeQrPngBufferFromText(qrText);
-
-  // 2) Upload to Storage
+  const png = await makeQrPngBuffer(qrText);
   const key = `qr/${regId}/${ticketNo}.png`;
-  console.log('QR upload ->', { bucket: QR_BUCKET, key });
 
-  // Optional: quick sanity check that bucket exists
-  const list = await sb.storage.from(QR_BUCKET).list('', { limit: 1 });
-  if (list.error && /not found/i.test(list.error.message)) {
-    throw new Error(`Bucket "${QR_BUCKET}" does not exist in this project`);
-  }
+  const { error } = await sb.storage.from(bucket).upload(key, png, {
+    contentType: 'image/png',
+    upsert: true,
+  });
+  if (error) throw new Error(`QR upload failed: ${error.message}`);
 
-  const { error } = await sb.storage
-    .from(QR_BUCKET)
-    .upload(key, pngBuffer, { contentType: 'image/png', upsert: true });
-
-  if (error) {
-    throw new Error(`QR upload failed: ${error.message}`);
-  }
-
-  // 3) Public URL (if bucket is public). For private bucket, create a signed URL instead.
-  const publicUrl = `${SUPABASE_URL!.replace(/\/$/, '')}/storage/v1/object/public/${QR_BUCKET}/${key}`;
-
+  const publicUrl = `${SUPABASE_URL!.replace(/\/$/, '')}/storage/v1/object/public/${bucket}/${key}`;
   return { qrUrl: publicUrl, token: token || ticketNo };
 }
 
-/** Issue N tickets of a type */
 export async function issueTicketsBatch(regId: string, type: TicketType, count: number) {
   const out: IssuedTicket[] = [];
+
   for (let i = 0; i < count; i++) {
-    const ticketNo = makeTicketNo();
+    const ticketNo = await makeTicketNo();
     const { qrUrl, token } = await generateAndStoreQR(regId, ticketNo);
+
+    await prisma.ticket.create({
+      data: { registrationId: regId, type, ticketNo, qrUrl, status: 'issued' },
+    });
+
     out.push({ ticketNo, qrUrl, token, type });
   }
+
   return out;
 }

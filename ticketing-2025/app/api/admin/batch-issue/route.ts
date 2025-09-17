@@ -20,7 +20,7 @@ import { sendTicketsEmail } from '@/lib/mailer';
 // ───────────────────────────────────────────────────────────────────────────────
 const MAX_BY_TYPE: Partial<Record<MemberType, number>> = {
   single: 1,
-  family: 6,
+  family: 5,
   student: 1,
   pensioner: 1,
 };
@@ -30,7 +30,7 @@ const MAX_BY_TYPE: Partial<Record<MemberType, number>> = {
 // ───────────────────────────────────────────────────────────────────────────────
 const INTERNAL_API_TOKEN = process.env.INTERNAL_API_TOKEN!;
 const INTERNAL_BASE_URL =
-  process.env.INTERNAL_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  process.env.INTERNAL_BASE_URL || process.env.PUBLIC_SITE_URL || 'http://localhost:3000';
 
 async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: number) {
   try {
@@ -44,9 +44,9 @@ async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: numbe
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${INTERNAL_API_TOKEN}`,
+        Authorization: `Bearer ${INTERNAL_API_TOKEN}`,
       },
-      body: JSON.stringify({ path }), // your OCR route derives amount from this
+      body: JSON.stringify({ path }),
       cache: 'no-store',
     });
 
@@ -57,8 +57,7 @@ async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: numbe
     }
 
     const paid = normalizePaidAmount(String(data.amount ?? '0'));
-    // allow tiny OCR jitter (±3 SEK)
-    const ok = Math.abs(paid - expectedAmount) <= 3;
+    const ok = Math.abs(paid - expectedAmount) <= 3; // allow tiny OCR jitter
     return { ok, paid, reason: ok ? undefined : 'amount_mismatch' };
   } catch (e: any) {
     console.error('OCR fetch exception:', e?.message);
@@ -77,11 +76,16 @@ function toStorageKey(urlOrKey: string) {
       ''
     )
     .replace(/\?.*$/, '');
-  // IMPORTANT: decode %2F, %20, etc.
   return decodeURIComponent(withoutPrefix);
 }
 
-function safeJson(s: string) { try { return JSON.parse(s); } catch { return null; } }
+function safeJson(s: string) {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+}
 
 function normalizePaidAmount(raw: string) {
   const s = raw
@@ -94,64 +98,20 @@ function normalizePaidAmount(raw: string) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
-// Unique constraint retry for ticketNo collisions
-// ───────────────────────────────────────────────────────────────────────────────
-async function saveTicketWithRetry(data: {
-  registrationId: string;
-  type: TicketType;
-  ticketNo: string;
-  qrUrl: string;
-}) {
-  // try a few times in case ticketNo collides with unique index
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      return await prisma.ticket.create({
-        data: {
-          registrationId: data.registrationId,
-          type: data.type,                // Prisma enum should match your TicketType
-          ticketNo: data.ticketNo,
-          qrUrl: data.qrUrl,
-          status: 'issued',              // must match your Prisma enum value
-        },
-      });
-    } catch (e: any) {
-      // Prisma unique constraint error
-      const isUnique =
-        e?.code === 'P2002' &&
-        (Array.isArray(e?.meta?.target)
-          ? e.meta.target.includes('ticketNo')
-          : String(e?.meta?.target || '').includes('ticketNo'));
-
-      if (isUnique) {
-        // regenerate and retry
-        data.ticketNo = makeTicketNo();
-        continue;
-      }
-      // not a unique error -> rethrow
-      throw e;
-    }
-  }
-  throw new Error('Could not generate a unique ticket number after retries');
-}
-
-
-// ───────────────────────────────────────────────────────────────────────────────
 // Handler
 // ───────────────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   try {
     const onlyPending = req.nextUrl.searchParams.get('onlyPending') === '1';
     const onlyFlagged = req.nextUrl.searchParams.get('onlyFlagged') === '1';
-    const dryRun     = req.nextUrl.searchParams.get('dryRun') === '1';
-    const useOCR     = req.nextUrl.searchParams.get('useOCR') === '1';
-    const limit      = Number(req.nextUrl.searchParams.get('limit') ?? '50');
+    const dryRun = req.nextUrl.searchParams.get('dryRun') === '1';
+    const useOCR = req.nextUrl.searchParams.get('useOCR') === '1';
+    const limit = Number(req.nextUrl.searchParams.get('limit') ?? '50');
 
     // 1) Load members once (normalize DB values -> MemberType)
     const members = await prisma.member.findMany({ select: { name_key: true, type: true } });
     const memberMap = new Map<string, MemberType>();
-    for (const m of members) {
-      memberMap.set(normalizeName(m.name_key), m.type);
-    }
+    for (const m of members) memberMap.set(normalizeName(m.name_key), m.type);
 
     // 2) Registrations with NO tickets yet
     const regs = await prisma.registration.findMany({
@@ -211,8 +171,8 @@ export async function GET(req: NextRequest) {
       emailError?: string;
       status: 'issued' | 'skipped';
       reason?: string;
-      expected?: number | null;   // <-- add
-      detected?: number | null;   // <-- add
+      expected?: number | null;
+      detected?: number | null;
     }> = [];
 
     for (const r of regs) {
@@ -231,8 +191,12 @@ export async function GET(req: NextRequest) {
           },
         });
         results.push({
-          registrationId: r.id, name: r.name, email: r.email,
-          issuedCount: 0, emailSent: false, status: 'skipped',
+          registrationId: r.id,
+          name: r.name,
+          email: r.email,
+          issuedCount: 0,
+          emailSent: false,
+          status: 'skipped',
           reason: 'membership_not_found',
         });
         continue;
@@ -252,8 +216,12 @@ export async function GET(req: NextRequest) {
             },
           });
           results.push({
-            registrationId: r.id, name: r.name, email: r.email,
-            issuedCount: 0, emailSent: false, status: 'skipped',
+            registrationId: r.id,
+            name: r.name,
+            email: r.email,
+            issuedCount: 0,
+            emailSent: false,
+            status: 'skipped',
             reason: `member_limit_exceeded:${mType}:${lim}`,
           });
           continue;
@@ -301,21 +269,30 @@ export async function GET(req: NextRequest) {
         });
       }
 
-
       // — Generate tickets (persist regardless of later email outcome)
       const plan: { type: TicketType; count: number }[] = [
-        { type: 'regular',  count: r.tickets_regular },
-        { type: 'member',   count: r.tickets_member },
-        { type: 'student',   count: r.tickets_student },
+        { type: 'regular', count: r.tickets_regular },
+        { type: 'member', count: r.tickets_member },
+        { type: 'student', count: r.tickets_student },
         { type: 'children', count: r.tickets_children },
       ];
 
       const issued: IssuedTicket[] = [];
       for (const { type, count } of plan) {
         for (let i = 0; i < count; i++) {
-          const ticketNo = makeTicketNo();
+          const ticketNo = await makeTicketNo(); // ← sequential, await
           const { qrUrl, token } = await generateAndStoreQR(r.id, ticketNo);
-          await saveTicketWithRetry({ registrationId: r.id, type, ticketNo, qrUrl });
+
+          await prisma.ticket.create({
+            data: {
+              registrationId: r.id,
+              type,
+              ticketNo,
+              qrUrl,
+              status: 'issued',
+            },
+          });
+
           issued.push({ ticketNo, qrUrl, token, type });
         }
       }
@@ -324,19 +301,22 @@ export async function GET(req: NextRequest) {
       await prisma.registration.update({
         where: { id: r.id },
         data: {
-          ticket_status: 'issued' satisfies TicketStatus,
-          // clear/confirm checks as applicable
+          ticket_status: 'issued' as TicketStatus,
           review_status: 'ok',
           review_reason: null,
           member_type_detected: mType ?? null,
           member_checked_at: mType ? new Date() : undefined,
           ...(useOCR
-            ? { payment_status: 'confirmed', ocr_amount_detected: r.total_amount, ocr_checked_at: new Date() }
+            ? {
+                payment_status: 'confirmed',
+                ocr_amount_detected: r.total_amount,
+                ocr_checked_at: new Date(),
+              }
             : {}),
         },
       });
 
-      // — Email the registrant (tickets email) — do not affect invoice fields
+      // — Email the registrant (tickets email)
       let emailOk = true;
       let emailErr = '';
       if (issued.length > 0) {
@@ -383,4 +363,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: e.message || 'internal error' }, { status: 500 });
   }
 }
-
