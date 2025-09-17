@@ -50,6 +50,16 @@ async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: numbe
 
     const text = await res.text();
     const data = safeJson(text) ?? {};
+
+    console.log('OCR CALL →', {
+      status: res.status,
+      proof: path,
+      expected: expectedAmount,
+      response_keys: Object.keys(data || {}),
+      amount: data?.amount,
+      raw_first200: String(data?.raw || '').slice(0, 200),
+    });
+    
     if (!res.ok || data?.error) {
       return { ok: false, paid: null, reason: data.error || `http_${res.status}` };
     }
@@ -69,14 +79,6 @@ async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: numbe
     if (!paid || paid <= 0) {
       return { ok: false, paid: paid ?? null, reason: 'amount_not_found' };
     }
-
-    // DEBUG: show what OCR actually saw
-    console.log('OCR DEBUG →', {
-      proof: path,
-      expected: expectedAmount,
-      amount: data.amount,
-      raw_first200: String(data.raw || '').slice(0, 200),
-    });
 
     const ok = Math.abs(paid - expectedAmount) <= 3; // allow tiny OCR jitter
     return { ok, paid, reason: ok ? undefined : 'amount_mismatch' };
