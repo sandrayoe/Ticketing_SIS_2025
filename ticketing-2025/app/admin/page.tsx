@@ -12,6 +12,8 @@ type BatchRow = {
   allowedMemberTickets?: number;
   memberOK?: boolean;
   willIssueTickets?: boolean;
+  expected?: number | null;   // ← show in preview
+  detected?: number | null;   // ← show in preview
 };
 
 type BatchResult = {
@@ -27,15 +29,18 @@ type BatchResult = {
     issuedCount: number;
     status: 'issued' | 'skipped';
     reason?: string;
-    expected?: number | null;   
-    detected?: number | null;   
+    expected?: number | null;
+    detected?: number | null;
   }>;
   error?: string;
 };
 
 export default function AdminBatchPage() {
-  const [onlyPending, setOnlyPending] = useState(true);
-  const [onlyFlagged, setOnlyFlagged] = useState(false);
+  // New filters
+  const [onlyUnissued, setOnlyUnissued] = useState(true);
+  const [onlyMemberTroubled, setOnlyMemberTroubled] = useState(false);
+  const [onlyOcrTroubled, setOnlyOcrTroubled] = useState(false);
+
   const [useOCR, setUseOCR] = useState(false);
   const [limit, setLimit] = useState(25);
 
@@ -56,8 +61,9 @@ export default function AdminBatchPage() {
 
     try {
       const qs = new URLSearchParams();
-      if (onlyPending) qs.set('onlyPending', '1');
-      if (onlyFlagged) qs.set('onlyFlagged', '1'); // supported if your API handles it
+      if (onlyUnissued) qs.set('onlyUnissued', '1');
+      if (onlyMemberTroubled) qs.set('onlyMemberTroubled', '1');
+      if (onlyOcrTroubled) qs.set('onlyOcrTroubled', '1');
       if (opts.dryRun) qs.set('dryRun', '1');
       if (opts.useOCR) qs.set('useOCR', '1');
       qs.set('limit', String(Math.max(1, Math.min(500, limit))));
@@ -89,22 +95,31 @@ export default function AdminBatchPage() {
             <label className="flex items-center gap-2 mb-2">
               <input
                 type="checkbox"
-                checked={onlyPending}
-                onChange={(e) => setOnlyPending(e.target.checked)}
+                checked={onlyUnissued}
+                onChange={(e) => setOnlyUnissued(e.target.checked)}
               />
-              <span>Only pending payments</span>
+              <span>Only registrations with no tickets issued</span>
             </label>
 
             <label className="flex items-center gap-2 mb-2">
               <input
                 type="checkbox"
-                checked={onlyFlagged}
-                onChange={(e) => setOnlyFlagged(e.target.checked)}
+                checked={onlyMemberTroubled}
+                onChange={(e) => setOnlyMemberTroubled(e.target.checked)}
               />
-              <span>Only flagged (needs_member / needs_ocr)</span>
+              <span>Membership troubled (needs_member / recheck)</span>
             </label>
 
-            <label className="flex items-center gap-2">
+            <label className="flex items-center gap-2 mb-2">
+              <input
+                type="checkbox"
+                checked={onlyOcrTroubled}
+                onChange={(e) => setOnlyOcrTroubled(e.target.checked)}
+              />
+              <span>OCR troubled (needs_ocr)</span>
+            </label>
+
+            <label className="mt-3 flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={useOCR}
@@ -194,6 +209,8 @@ export default function AdminBatchPage() {
                         <th className="p-2">Type</th>
                         <th className="p-2">Claimed/Allowed</th>
                         <th className="p-2">Will Issue</th>
+                        <th className="p-2">Expected</th>  
+                        <th className="p-2">Detected</th>   
                       </tr>
                     </thead>
                     <tbody className="text-gray-900">
@@ -203,8 +220,12 @@ export default function AdminBatchPage() {
                           <td className="p-2">{r.email}</td>
                           <td className="p-2">{r.isMember ? '✅' : '❌'}</td>
                           <td className="p-2">{r.memberType ?? '-'}</td>
-                          <td className="p-2">{r.claimedMemberTickets}/{r.allowedMemberTickets}</td>
+                          <td className="p-2">
+                            {r.claimedMemberTickets}/{r.allowedMemberTickets}
+                          </td>
                           <td className="p-2">{r.willIssueTickets ? '✅' : '❌'}</td>
+                          <td className="p-2">{r.expected ?? '-'}</td>
+                          <td className="p-2">{r.detected ?? '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -223,8 +244,8 @@ export default function AdminBatchPage() {
                         <th className="p-2">Issued</th>
                         <th className="p-2">Status</th>
                         <th className="p-2">Reason</th>
-                        <th className="p-2">Expected</th>  
-                        <th className="p-2">Detected</th>  
+                        <th className="p-2">Expected</th>
+                        <th className="p-2">Detected</th>
                       </tr>
                     </thead>
                     <tbody className="text-gray-900">
@@ -246,11 +267,10 @@ export default function AdminBatchPage() {
                           </td>
                           <td className="p-2">{r.reason ?? '-'}</td>
                           <td className="p-2">{r.expected ?? '-'}</td>
-                          <td className="p-2">{r.detected ?? '-'}</td>   
+                          <td className="p-2">{r.detected ?? '-'}</td>
                         </tr>
                       ))}
                     </tbody>
-
                   </table>
                 </div>
               )}

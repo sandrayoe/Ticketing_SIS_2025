@@ -1,6 +1,5 @@
 // app/api/admin/batch-issue/route.ts
 // deno-lint-ignore-file
-
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -36,7 +35,6 @@ async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: numbe
   try {
     if (!proofUrlOrKey) return { ok: false, paid: null as number | null, reason: 'no_proof' };
 
-    // accept: public url, signed url, or raw "bucket/key"
     const path = toStorageKey(proofUrlOrKey);
     if (!INTERNAL_API_TOKEN) return { ok: false, paid: null, reason: 'missing_INTERNAL_API_TOKEN' };
 
@@ -65,11 +63,8 @@ async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: numbe
   }
 }
 
-// Accepts: "bucket/key" OR Supabase public/signed/authenticated URL -> "bucket/key"
 function toStorageKey(urlOrKey: string) {
-  if (!/^https?:\/\//i.test(urlOrKey)) {
-    return urlOrKey.replace(/^\/+/, '');
-  }
+  if (!/^https?:\/\//i.test(urlOrKey)) return urlOrKey.replace(/^\/+/, '');
   const withoutPrefix = urlOrKey
     .replace(
       /^https?:\/\/[^/]+\/storage\/v1\/object\/(?:public|sign|authenticated)\//,
@@ -102,48 +97,96 @@ function normalizePaidAmount(raw: string) {
 // ───────────────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   try {
-    const onlyPending = req.nextUrl.searchParams.get('onlyPending') === '1';
-    const onlyFlagged = req.nextUrl.searchParams.get('onlyFlagged') === '1';
+    // New filters (preferred)
+    const onlyUnissued        = req.nextUrl.searchParams.get('onlyUnissued') === '1';
+    const onlyMemberTroubled  = req.nextUrl.searchParams.get('onlyMemberTroubled') === '1';
+    const onlyOcrTroubled     = req.nextUrl.searchParams.get('onlyOcrTroubled') === '1';
+
+    // Back-compat with old flags (optional)
+    const onlyPendingLegacy = req.nextUrl.searchParams.get('onlyPending') === '1';
+    const onlyFlaggedLegacy = req.nextUrl.searchParams.get('onlyFlagged') === '1';
+
     const dryRun = req.nextUrl.searchParams.get('dryRun') === '1';
     const useOCR = req.nextUrl.searchParams.get('useOCR') === '1';
-    const limit = Number(req.nextUrl.searchParams.get('limit') ?? '50');
+    const limit = Math.max(1, Math.min(500, Number(req.nextUrl.searchParams.get('limit') ?? '50')));
 
     // 1) Load members once (normalize DB values -> MemberType)
     const members = await prisma.member.findMany({ select: { name_key: true, type: true } });
     const memberMap = new Map<string, MemberType>();
     for (const m of members) memberMap.set(normalizeName(m.name_key), m.type);
 
-    // 2) Registrations with NO tickets yet
+    // 2) Build WHERE from new flags (and legacy ones if provided)
+    const orTroubled: any[] = [];
+    if (onlyMemberTroubled) orTroubled.push({ review_status: { in: ['needs_member', 'recheck'] } });
+    if (onlyOcrTroubled)    orTroubled.push({ review_status: 'needs_ocr' });
+
+    // Legacy “flagged”
+    if (onlyFlaggedLegacy && orTroubled.length === 0) {
+      orTroubled.push({ review_status: { in: ['needs_member', 'needs_ocr', 'recheck'] } });
+    }
+
+    const where: any = {
+      // “Only unissued” means no tickets; otherwise don’t constrain by tickets.
+      ...(onlyUnissued ? { tickets: { none: {} } } : {}),
+
+      // Legacy pending (kept; remove if you don’t use it anymore)
+      ...(onlyPendingLegacy ? { payment_status: 'pending' } : {}),
+
+      // If any troubled filters are active, apply OR
+      ...(orTroubled.length > 0 ? { OR: orTroubled } : {}),
+    };
+
+    // 3) Pull registrations (you can add tickets: { none: {} } to where if you always want unissued)
     const regs = await prisma.registration.findMany({
-      where: {
-        ...(onlyPending ? { payment_status: 'pending' } : {}),
-        ...(onlyFlagged ? { review_status: { in: ['needs_member', 'needs_ocr', 'recheck'] } } : {}),
-        tickets: { none: {} },
-      },
+      where,
       select: {
         id: true,
         name: true,
         email: true,
         proof_url: true,
+
         tickets_regular: true,
         tickets_member: true,
         tickets_student: true,
         tickets_children: true,
+
         total_amount: true,
+        payment_status: true,
+        review_status: true,
+
+        // Keep what we last stored for OCR
+        ocr_amount_detected: true,
+        ocr_expected_amount: true,
+
         createdAt: true,
+        // We don't need existing tickets when we already filter for unissued,
+        // but if you want to be safe, you can fetch count:
+        // _count: { select: { tickets: true } },
       },
       orderBy: { createdAt: 'asc' },
-      take: Math.max(1, Math.min(500, limit)),
+      take: limit,
     });
 
-    // 3) Dry run (preview only)
+    // Helper to compute “expected” (you already have total_amount stored)
+    const getExpected = (r: any) => Number(r.total_amount ?? 0);
+
+    // 4) Dry run (preview only)
     if (dryRun) {
       const preview = regs.map((r) => {
         const key = normalizeName(r.name);
-        const mType = memberMap.get(key); // MemberType | undefined
+        const mType = memberMap.get(key);
         const memberOk = r.tickets_member === 0 ? true : !!mType;
         const limitByType = mType ? MAX_BY_TYPE[mType] ?? 1 : 0;
         const withinLimit = mType ? r.tickets_member <= limitByType : r.tickets_member === 0;
+
+        // ⬇️ new: show amounts in preview
+        const expected = Number(r.total_amount ?? 0);
+        const detected = r.ocr_amount_detected ?? null;
+
+        // ⬇️ new: enforce OCR match in preview if checkbox is on
+        const ocrOk = !useOCR
+          ? true
+          : detected !== null && Math.abs(detected - expected) <= 3; // same jitter you use elsewhere
 
         return {
           registrationId: r.id,
@@ -154,14 +197,17 @@ export async function GET(req: NextRequest) {
           claimedMemberTickets: r.tickets_member,
           allowedMemberTickets: mType ? limitByType : 0,
           memberOK: memberOk && withinLimit,
-          willIssueTickets: memberOk && withinLimit,
+          willIssueTickets: memberOk && withinLimit && ocrOk, // ⬅️ include OCR
+          expected,   // for your preview table
+          detected,   // for your preview table
         };
       });
 
       return NextResponse.json({ ok: true, mode: 'dryRun', count: preview.length, rows: preview });
     }
 
-    // 4) Issue sequentially
+
+    // 5) Real issuing
     const results: Array<{
       registrationId: string;
       name: string;
@@ -177,7 +223,7 @@ export async function GET(req: NextRequest) {
 
     for (const r of regs) {
       const key = normalizeName(r.name);
-      const mType = memberMap.get(key); // MemberType | undefined
+      const mType = memberMap.get(key);
 
       // — Membership required but not found → flag & skip
       if (r.tickets_member > 0 && !mType) {
@@ -198,6 +244,8 @@ export async function GET(req: NextRequest) {
           emailSent: false,
           status: 'skipped',
           reason: 'membership_not_found',
+          expected: Number(r.total_amount ?? 0),
+          detected: r.ocr_amount_detected ?? null,
         });
         continue;
       }
@@ -223,15 +271,18 @@ export async function GET(req: NextRequest) {
             emailSent: false,
             status: 'skipped',
             reason: `member_limit_exceeded:${mType}:${lim}`,
+            expected: Number(r.total_amount ?? 0),
+            detected: r.ocr_amount_detected ?? null,
           });
           continue;
         }
       }
 
-      // — OCR check → flag & skip if mismatch
-      let paidDetected: number | null = null;
+      // — OCR check (if requested) → flag & skip if mismatch
+      let paidDetected: number | null = r.ocr_amount_detected ?? null; // keep prior if any
       if (useOCR) {
-        const check = await verifyPaymentWithOCR(r.proof_url, r.total_amount);
+        const expectedAmt = Number(r.total_amount ?? 0);
+        const check = await verifyPaymentWithOCR(r.proof_url, expectedAmt);
         paidDetected = check.paid ?? null;
 
         if (!check.ok) {
@@ -241,7 +292,8 @@ export async function GET(req: NextRequest) {
               review_status: 'needs_ocr',
               review_reason: `payment_ocr_${check.reason || 'mismatch'}`,
               ocr_amount_detected: paidDetected,
-              ocr_expected_amount: r.total_amount,
+              ocr_expected_amount: expectedAmt,
+              ocr_checked_at: new Date(),
             },
           });
           results.push({
@@ -252,35 +304,36 @@ export async function GET(req: NextRequest) {
             emailSent: false,
             status: 'skipped',
             reason: `payment_ocr_${check.reason || 'mismatch'}`,
-            expected: r.total_amount,
+            expected: expectedAmt,
             detected: paidDetected,
           });
           continue;
         }
 
-        // For successful OCR
+        // Successful OCR: persist what we actually detected (⚠ don’t overwrite with expected later)
         await prisma.registration.update({
           where: { id: r.id },
           data: {
             payment_status: 'confirmed',
             ocr_amount_detected: paidDetected,
-            ocr_expected_amount: r.total_amount,
+            ocr_expected_amount: expectedAmt,
+            ocr_checked_at: new Date(),
           },
         });
       }
 
-      // — Generate tickets (persist regardless of later email outcome)
+      // — Generate tickets
       const plan: { type: TicketType; count: number }[] = [
         { type: 'regular', count: r.tickets_regular },
-        { type: 'member', count: r.tickets_member },
+        { type: 'member',  count: r.tickets_member  },
         { type: 'student', count: r.tickets_student },
-        { type: 'children', count: r.tickets_children },
+        { type: 'children',count: r.tickets_children},
       ];
 
       const issued: IssuedTicket[] = [];
       for (const { type, count } of plan) {
         for (let i = 0; i < count; i++) {
-          const ticketNo = await makeTicketNo(); // ← sequential, await
+          const ticketNo = await makeTicketNo();
           const { qrUrl, token } = await generateAndStoreQR(r.id, ticketNo);
 
           await prisma.ticket.create({
@@ -297,7 +350,7 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // — Mark registration tickets status to "issued"
+      // — Mark registration “issued”
       await prisma.registration.update({
         where: { id: r.id },
         data: {
@@ -309,14 +362,15 @@ export async function GET(req: NextRequest) {
           ...(useOCR
             ? {
                 payment_status: 'confirmed',
-                ocr_amount_detected: r.total_amount,
-                ocr_checked_at: new Date(),
+                // DO NOT overwrite detected with expected; we already stored detected above.
+                // ocr_amount_detected: paidDetected, // <-- omit to avoid accidental overwrite
+                // ocr_expected_amount: r.total_amount, // <-- omit too
               }
             : {}),
         },
       });
 
-      // — Email the registrant (tickets email)
+      // — Email the registrant
       let emailOk = true;
       let emailErr = '';
       if (issued.length > 0) {
@@ -346,6 +400,7 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      const expectedAmt = Number(r.total_amount ?? 0);
       results.push({
         registrationId: r.id,
         name: r.name,
@@ -355,6 +410,8 @@ export async function GET(req: NextRequest) {
         emailError: emailOk ? undefined : emailErr,
         status: 'issued',
         reason: emailOk ? undefined : `tickets_email_failed:${emailErr}`,
+        expected: expectedAmt,
+        detected: paidDetected, // ← report detected even on success
       });
     }
 
