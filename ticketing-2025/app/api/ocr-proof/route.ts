@@ -72,7 +72,6 @@ function extractAmountSEK(text: string): number | null {
     const v = normalizePaidAmount(near[1]);
     if (v > 0 && v < 200000) return v;
   }
-
   return null;
 }
 

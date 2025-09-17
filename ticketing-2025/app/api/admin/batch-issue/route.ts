@@ -70,6 +70,14 @@ async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: numbe
       return { ok: false, paid: paid ?? null, reason: 'amount_not_found' };
     }
 
+    // DEBUG: show what OCR actually saw
+    console.log('OCR DEBUG →', {
+      proof: path,
+      expected: expectedAmount,
+      amount: data.amount,
+      raw_first200: String(data.raw || '').slice(0, 200),
+    });
+
     const ok = Math.abs(paid - expectedAmount) <= 3; // allow tiny OCR jitter
     return { ok, paid, reason: ok ? undefined : 'amount_mismatch' };
   } catch (e: any) {
