@@ -29,7 +29,7 @@ const MAX_BY_TYPE: Partial<Record<MemberType, number>> = {
 // ───────────────────────────────────────────────────────────────────────────────
 const INTERNAL_API_TOKEN = process.env.INTERNAL_API_TOKEN!;
 const INTERNAL_BASE_URL =
-  process.env.INTERNAL_BASE_URL || process.env.PUBLIC_SITE_URL || 'http://localhost:3000';
+  process.env.PUBLIC_SITE_URL || 'http://localhost:3000';
 
 async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: number) {
   try {
