@@ -60,8 +60,8 @@ export default function AdminCheckinPage() {
     return () => clearInterval(id);
   }, [fetchStats, poll]);
 
-  const doCheckin = useCallback(async (ticketNo: string) => {
-    if (!ticketNo) return;
+  const doCheckin = useCallback(async (code: string) => {
+    if (!code) return;
     setBusy(true);
     setMessage(null);
     setStatus(null);
@@ -69,7 +69,7 @@ export default function AdminCheckinPage() {
       const r = await fetch('/api/admin/checkin', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ticketNo }),
+        body: JSON.stringify({ code }),   // <-- send "code"
         cache: 'no-store',
       });
       const j = (await r.json()) as CheckinResponse;
@@ -80,12 +80,12 @@ export default function AdminCheckinPage() {
         return;
       }
 
-      setLastTicketNo(j.ticket?.ticketNo || ticketNo);
+      setLastTicketNo(j.ticket?.ticketNo || '');
       if (j.status === 'checked_in') {
-        setMessage(`Checked in: ${j.ticket?.ticketNo ?? ticketNo}`);
+        setMessage(`Checked in: ${j.ticket?.ticketNo ?? ''}`);
         setStatus('ok');
       } else if (j.status === 'already_checked_in') {
-        setMessage(`Already checked in: ${j.ticket?.ticketNo ?? ticketNo}`);
+        setMessage(`Already checked in: ${j.ticket?.ticketNo ?? ''}`);
         setStatus('warn');
       } else {
         setMessage('Done.');
@@ -163,25 +163,37 @@ export default function AdminCheckinPage() {
             </div>
 
             {/* Scanner or placeholder */}
-            {cameraOn ? (
-              <Scanner
-                onScan={(codes) => {
-                  if (paused) return;
-                  if (!codes || codes.length === 0) return;
-                  if (lockRef.current) return; // throttle double read
-                  lockRef.current = true;
+          {cameraOn ? (
+            <Scanner
+              onScan={(codes) => {
+                if (paused) return;
+                if (!codes || codes.length === 0) return;
+                if (lockRef.current) return; // throttle double read
+                lockRef.current = true;
 
-                  const ticketNo = codes[0].rawValue; // QR text content
-                  doCheckin(ticketNo);
-                }}
-                onError={(err) => {
-                  console.error('Scanner error:', err);
-                }}
-                paused={paused}
-                constraints={{ facingMode: 'environment' }}
-                scanDelay={500}
-              />
-            ) : (
+                let raw = (codes[0]?.rawValue || '').trim();
+
+                // If QR encodes a URL, try to extract ?code=...
+                if (/^https?:\/\//i.test(raw)) {
+                  try {
+                    const u = new URL(raw);
+                    const qp = u.searchParams.get('code');
+                    if (qp) raw = qp;
+                  } catch {
+                    // ignore parse errors; fall back to raw
+                  }
+                }
+               // raw is now JWT or plain ticketNo; send as "code"
+                doCheckin(raw);
+              }}
+              onError={(err) => {
+                console.error('Scanner error:', err);
+              }}
+              paused={paused}
+              constraints={{ facingMode: 'environment' }}
+              scanDelay={500}
+            />
+          ) : (
               <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-earthy-dark/20 bg-earthy-light/40 text-earthy-dark/60">
                 <div className="text-center">
                   <div className="font-semibold">Camera is off</div>

@@ -3,14 +3,21 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { extractTicketNo } from '@/lib/extractTicketNo';
 
-// POST 
 export async function POST(req: NextRequest) {
   try {
-    const { ticketNo } = await req.json();
+    const { code } = await req.json();
 
-    if (!ticketNo || typeof ticketNo !== 'string') {
-      return NextResponse.json({ ok: false, error: 'ticketNo required' }, { status: 400 });
+    if (!code || typeof code !== 'string') {
+      return NextResponse.json({ ok: false, error: 'code required' }, { status: 400 });
+    }
+
+    let ticketNo: string;
+    try {
+      ({ ticketNo } = extractTicketNo(code));
+    } catch (e: any) {
+      return NextResponse.json({ ok: false, error: `Invalid code: ${e.message}` }, { status: 400 });
     }
 
     const ticket = await prisma.ticket.findUnique({ where: { ticketNo } });
@@ -34,19 +41,26 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET 
+// let GET also accept ?code=... and decode
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const ticketNo = searchParams.get('ticketNo');
+  try {
+    const { searchParams } = new URL(req.url);
+    const code = searchParams.get('code');
+    const ticketNoParam = searchParams.get('ticketNo');
 
-  if (!ticketNo) {
-    return NextResponse.json({ ok: false, error: 'ticketNo required' }, { status: 400 });
+    if (!code && !ticketNoParam) {
+      return NextResponse.json({ ok: false, error: 'code or ticketNo required' }, { status: 400 });
+    }
+
+    const { ticketNo } = code ? extractTicketNo(code) : { ticketNo: String(ticketNoParam) };
+
+    const ticket = await prisma.ticket.findUnique({ where: { ticketNo } });
+    if (!ticket) {
+      return NextResponse.json({ ok: false, error: 'Ticket not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true, ticket });
+  } catch (err: any) {
+    return NextResponse.json({ ok: false, error: 'Invalid code' }, { status: 400 });
   }
-
-  const ticket = await prisma.ticket.findUnique({ where: { ticketNo } });
-  if (!ticket) {
-    return NextResponse.json({ ok: false, error: 'Ticket not found' }, { status: 404 });
-  }
-
-  return NextResponse.json({ ok: true, ticket });
 }
