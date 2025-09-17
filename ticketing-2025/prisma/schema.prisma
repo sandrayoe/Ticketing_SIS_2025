@@ -59,6 +59,7 @@ model Registration {
   tickets_children Int           @default(0)
   tickets_member   Int           @default(0)
   tickets_student  Int           @default(0)
+  total_tickets    Int           @default(0)
   total_amount     Int           //store in SEK
   proof_url        String
   payment_status   PaymentStatus @default(pending)
