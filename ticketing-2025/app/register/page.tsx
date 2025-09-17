@@ -79,7 +79,7 @@ function PaymentDetails() {
 
       {/* Prices */}
       <div className="mt-6 rounded-2xl border border-earthy-dark/10 bg-earthy-light/40 p-4">
-        <div className="text-sm font-semibold text-earthy-dark/90">Ticket prices</div>
+        <div className="text-sm font-semibold text-earthy-dark/90">Ticket prices (presale only)</div>
         <ul className="mt-2 list-disc pl-5 text-sm text-earthy-dark/80">
           <li>Regular: {sek(PRICE_REGULAR)}</li>
           <li>Member: {sek(PRICE_MEMBER)}</li>
@@ -272,9 +272,10 @@ export default function RegisterPage() {
         <div className="mx-auto max-w-2xl">
           {/* Title / intro */}
           <div className="text-center">
-            <h1 className="text-3xl font-bold sm:text-4xl">Registration</h1>
+            <h1 className="text-3xl font-bold sm:text-4xl">Registration (Presale)</h1>
             <p className="mt-3 text-earthy-dark/80 sm:text-lg">
-              Please fill in your details, ticket quantities, and proof of payment below.
+              Please fill in your details, ticket quantities, and proof of payment below. This is for presale tickets only,
+              on-site prices might differ.
             </p>
           </div>
 
@@ -413,17 +414,18 @@ export default function RegisterPage() {
                     <label className="block order-4">
                       <span className="mb-1 block text-xs font-medium">Member</span>
                       <input
-                        type="number" min={0} step={1}
+                        type="number" min={0} max={5} step={1}
                         className="w-full rounded-lg border border-earthy-dark/20 bg-white p-2.5 focus:outline-none focus:ring-2 focus:ring-earthy-green"
                         value={form.tickets_member === 0 ? "" : form.tickets_member}
                         onChange={e => {
-                          const val = Number(e.target.value);
+                          let val = Number(e.target.value);
+                          if (val > 5) val = 5;
                           setForm(f => ({ ...f, tickets_member: isNaN(val) ? 0 : val }));
                         }}
                         placeholder="0"
                       />
                       <span className="mt-1 block text-[11px] text-red-600">
-                        *member tickets are for you (single) or your family only (family membership)
+                        *member tickets are for you or your family only (family membership - max 5)
                       </span>
                     </label>
                   )}
