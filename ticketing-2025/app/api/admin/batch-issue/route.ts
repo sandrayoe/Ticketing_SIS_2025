@@ -29,7 +29,7 @@ const MAX_BY_TYPE: Partial<Record<MemberType, number>> = {
 // ───────────────────────────────────────────────────────────────────────────────
 const INTERNAL_API_TOKEN = process.env.INTERNAL_API_TOKEN!;
 const INTERNAL_BASE_URL =
-  process.env.PUBLIC_SITE_URL || 'http://localhost:3000';
+  process.env.INTERNAL_BASE_URL || process.env.PUBLIC_SITE_URL || 'http://localhost:3000';
 
 async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: number) {
   try {
@@ -51,15 +51,10 @@ async function verifyPaymentWithOCR(proofUrlOrKey: string, expectedAmount: numbe
     const text = await res.text();
     const data = safeJson(text) ?? {};
 
-    console.log('OCR CALL →', {
-      status: res.status,
-      proof: path,
-      expected: expectedAmount,
-      response_keys: Object.keys(data || {}),
-      amount: data?.amount,
-      raw_first200: String(data?.raw || '').slice(0, 200),
-    });
-    
+    // in verifyPaymentWithOCR, after `const text = await res.text();`
+    console.log('[OCR] http', res.status, 'body_first400:', text.slice(0, 400));
+
+
     if (!res.ok || data?.error) {
       return { ok: false, paid: null, reason: data.error || `http_${res.status}` };
     }
@@ -252,14 +247,15 @@ export async function GET(req: NextRequest) {
         const limitByType = mType ? MAX_BY_TYPE[mType] ?? 1 : 0;
         const withinLimit = mType ? r.tickets_member <= limitByType : r.tickets_member === 0;
 
-        // ⬇️ new: show amounts in preview
+        // dry-run
         const expected = Number(r.total_amount ?? 0);
         const detected = r.ocr_amount_detected ?? null;
 
-        // ⬇️ new: enforce OCR match in preview if checkbox is on
+        // NEW: if admin has already confirmed payment, we consider OCR OK regardless.
         const ocrOk = !useOCR
           ? true
-          : detected !== null && Math.abs(detected - expected) <= 3; // same jitter you use elsewhere
+          : (r.payment_status === 'confirmed'
+              || (detected !== null && Math.abs(detected - expected) <= 3));
 
         return {
           registrationId: r.id,
@@ -351,10 +347,12 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // — OCR check (if requested) → flag & skip if mismatch
-      let paidDetected: number | null = r.ocr_amount_detected ?? null; // keep prior if any
-      if (useOCR) {
-        const expectedAmt = Number(r.total_amount ?? 0);
+      // — OCR check but bypass if admin already confirmed in DB (payment: confirmed)
+      let paidDetected: number | null = r.ocr_amount_detected ?? null;
+      const expectedAmt = Number(r.total_amount ?? 0);
+
+      if (useOCR && r.payment_status !== 'confirmed') {
+        // Only attempt OCR if not already confirmed by admin
         const check = await verifyPaymentWithOCR(r.proof_url, expectedAmt);
         paidDetected = check.paid ?? null;
 
@@ -383,7 +381,7 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
-        // Successful OCR: persist what we actually detected (⚠ don’t overwrite with expected later)
+        // OCR success → persist detection
         await prisma.registration.update({
           where: { id: r.id },
           data: {
@@ -393,7 +391,17 @@ export async function GET(req: NextRequest) {
             ocr_checked_at: new Date(),
           },
         });
+      } else {
+        // useOCR is off OR admin already confirmed → proceed without OCR
+        // Optionally normalize fields if you want:
+        // if (r.payment_status !== 'confirmed') {
+        //   await prisma.registration.update({
+        //     where: { id: r.id },
+        //     data: { payment_status: 'confirmed' },
+        //   });
+        // }
       }
+
 
       // — Generate tickets
       const plan: { type: TicketType; count: number }[] = [
@@ -473,7 +481,6 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      const expectedAmt = Number(r.total_amount ?? 0);
       results.push({
         registrationId: r.id,
         name: r.name,
