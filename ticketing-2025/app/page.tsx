@@ -96,6 +96,19 @@ export default function HomePage() {
                     importance of unity among different cultures.
                   </p>
 
+                  <p className="flex items-center justify-center gap-1 text-center sm:text-left">
+                    <span>For more info, visit</span>
+                    <a
+                      href="https://svensk-indonesiska.se/aktivitas/pasar-malam-2025-celebration-of-friendship"
+                      className="flex items-center gap-1 text-earthy-green hover:text-earthy-brown"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      here
+                    </a>
+                    .
+                  </p>
+
                   <p className="flex flex-col items-center sm:flex-row sm:justify-center gap-1 sm:gap-2">
                     <span className="flex items-center gap-2">
                       <Calendar className="h-5 w-5 text-earthy-green" />
