@@ -7,8 +7,8 @@ import { useRouter } from 'next/navigation';
 const shell = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
 
 // Prices (keep in sync with API or move to shared/constants)
-const PRICE_REGULAR = 100;
-const PRICE_MEMBER  = 60;
+const PRICE_REGULAR = 125;
+const PRICE_MEMBER  = 80;
 const PRICE_STUDENT = 60;
 const PRICE_CHILD   = 0;
 
